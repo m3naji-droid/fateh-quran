@@ -422,7 +422,7 @@ export async function saveSubmission(
   const submissions = getSubmissions();
   const id = `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
-  // 1. حفظ الصوت محلياً بحجمه الكامل في IndexedDB
+  // 1. حفظ التسجيل الصوتي محلياً في IndexedDB
   if (submission.audioBase64) {
     await saveAudioToIDB(id, submission.audioBase64);
   }
@@ -431,14 +431,28 @@ export async function saveSubmission(
     ...submission,
     id,
     submittedAt: new Date().toISOString(),
+    teacherGrade: submission.teacherGrade ?? null,
+    teacherNotes: submission.teacherNotes || '',
+    audioBase64: submission.audioBase64 || '',
   };
 
+  // 2. المزامنة مع LocalStorage
   submissions.unshift(newSubmission);
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
 
-  // 2. تجهيز بيانات التسليم السحابية بدون حقل الصوت الضخم لضمان القبول الفوري في Firestore
-  const cloudSubmission = { ...newSubmission };
-  delete (cloudSubmission as any).audioBase64;
+  // 3. تنظيف البيانات المرسلة للسحابة لمنع رفض Firestore بسبب قيم undefined
+  const cloudSubmission: Record<string, any> = {
+    id: newSubmission.id,
+    assignmentId: newSubmission.assignmentId,
+    studentId: newSubmission.studentId,
+    submittedAt: newSubmission.submittedAt,
+    teacherGrade: newSubmission.teacherGrade,
+    teacherNotes: newSubmission.teacherNotes,
+  };
+
+  if ((newSubmission as any).textAnswer !== undefined) {
+    cloudSubmission.textAnswer = (newSubmission as any).textAnswer;
+  }
 
   try {
     await setDoc(doc(db, 'submissions', id), cloudSubmission);
