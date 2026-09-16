@@ -36,8 +36,14 @@ export default function App() {
   // Teacher active section
   const [teacherActiveSection, setTeacherActiveSection] = useState<'submissions' | 'classes' | 'assignments'>('submissions');
 
-  // Real-time Cloud Firestore subscription
+  // Real-time Cloud Firestore subscription & Local storage sync
   useEffect(() => {
+    // دمج فوري للتخزين المحلي عند التحميل الأول لضمان عدم اختفاء أي بيانات
+    setClasses(getClasses());
+    setStudents(getStudents());
+    setAssignments(getAssignments());
+    setSubmissions(getSubmissions());
+
     const unsubscribe = subscribeToCloudData({
       onClassesChange: (newClasses) => {
         setClasses([...newClasses]);
@@ -62,14 +68,20 @@ export default function App() {
         setAssignments([...newAssignments]);
       },
       onSubmissionsChange: (newSubmissions) => {
-        setSubmissions([...newSubmissions]);
+        // الدمج مع التخزين المحلي لضمان عدم ضياع أي استجابة حديثة
+        const localSubs = getSubmissions();
+        const mergedMap = new Map();
+        [...localSubs, ...newSubmissions].forEach(sub => {
+          mergedMap.set(sub.id || `${sub.studentId}-${sub.assignmentId}`, sub);
+        });
+        setSubmissions(Array.from(mergedMap.values()));
       },
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Refresh all state from storage
+  // Refresh all state from storage explicitly
   const refreshData = () => {
     setClasses(getClasses());
     setStudents(getStudents());
