@@ -23,11 +23,9 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   const timerIntervalRef = useRef<number | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
-
-  // مرجع لتخزين الـ Base64 بشكل مباشر لضمان عدم ضياعه في المحاولة الأولى
   const rawBase64Ref = useRef<string | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
-  // Initialize Speech Recognition for Arabic if available in browser
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -60,6 +58,9 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.stop();
       }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      }
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -77,9 +78,18 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     rawBase64Ref.current = null;
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // طلب إذن الميكروفون بتهيئة صريحة
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { 
+          echoCancellation: true, 
+          noiseSuppression: true,
+          sampleRate: 44100 
+        } 
+      });
       
-      const mimeTypes = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
+      mediaStreamRef.current = stream;
+      
+      const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
       let selectedMime = '';
       for (const m of mimeTypes) {
         if (MediaRecorder.isTypeSupported(m)) {
@@ -92,29 +102,12 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
+        if (event.data && event.data.size > 0) {
           audioChunksRef.current.push(event.data);
         }
       };
 
-      mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: selectedMime || 'audio/webm' });
-        const url = URL.createObjectURL(audioBlob);
-        setAudioUrl(url);
-
-        // Convert blob to Base64 immediately and securely via Promise/FileReader
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64data = reader.result as string;
-          rawBase64Ref.current = base64data;
-          setBase64Audio(base64data);
-        };
-        reader.readAsDataURL(audioBlob);
-
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start(250);
+      mediaRecorder.start(100); // تجميع البيانات كل 100ms لضمان التقاط الصوت بدقة من اللحظة الأولى
       setRecordingState('recording');
       setRecordDuration(0);
 
@@ -139,14 +132,47 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       timerIntervalRef.current = null;
     }
 
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch {}
+    }
+
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state === 'recording') {
+      // إجبار المسجل على طلب البيانات المتبقية فوراً قبل التوقف لمنع فقدان الحزمة الأولى
+      try {
+        recorder.requestData();
+      } catch (e) {}
+
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { 
+          type: recorder.mimeType || 'audio/webm' 
+        });
+
+        if (audioBlob.size === 0) {
+          setMicPermissionError('لم يتم تسجيل أي صوت. يرجى التأكد من عمل الميكروفون وإعادة المحاولة.');
+          setRecordingState('idle');
+          return;
+        }
+
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          rawBase64Ref.current = base64data;
+          setBase64Audio(base64data);
+        };
+        reader.readAsDataURL(audioBlob);
+
+        if (mediaStreamRef.current) {
+          mediaStreamRef.current.getTracks().forEach(track => track.stop());
+        }
+      };
+
+      recorder.stop();
     }
 
     setRecordingState('recorded');
@@ -181,9 +207,11 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   };
 
   const handleSubmit = () => {
-    // استخدام الـ Ref المباشر يضمن عدم ضياع البيانات أبداً حتى في المحاولة الأولى
-    const finalAudio = rawBase64Ref.current || base64Audio || audioUrl;
-    if (!finalAudio) return;
+    const finalAudio = rawBase64Ref.current || base64Audio;
+    if (!finalAudio) {
+      setMicPermissionError('جاري تجهيز الملف الصوتي، يرجى الانتظار ثانية واحدة والنقر مرة أخرى.');
+      return;
+    }
     
     onRecitationCompleted(finalAudio, recordDuration, transcribedText);
   };
@@ -196,7 +224,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
   return (
     <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-sm transition-all">
-      {/* Status banner */}
       <div className="flex items-center justify-between pb-4 border-b border-stone-100 mb-4">
         <div className="flex items-center gap-2">
           {recordingState === 'recording' ? (
@@ -214,7 +241,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
           </span>
         </div>
 
-        {/* Timer display */}
         <div className="font-mono text-sm font-bold bg-stone-100 px-2.5 py-1 rounded-md text-stone-800">
           {formatTimer(recordDuration)}
         </div>
@@ -227,7 +253,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
         </div>
       )}
 
-      {/* Recording Visualization Area */}
       <div className="flex flex-col items-center justify-center py-6 px-4 bg-stone-50/70 rounded-xl border border-dashed border-stone-200 mb-4">
         {recordingState === 'idle' && (
           <div className="flex flex-col items-center text-center gap-3">
@@ -288,7 +313,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
             <div className="flex items-center gap-3">
               <button
                 onClick={togglePreviewAudio}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95"
+                className="flex items-center gap-0.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95"
               >
                 {isPreviewPlaying ? (
                   <>
@@ -320,7 +345,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
         )}
       </div>
 
-      {/* Submit Action Button */}
       {recordingState === 'recorded' && (
         <div className="pt-2">
           <button
