@@ -14,7 +14,6 @@ const STORAGE_KEYS = {
   STUDENTS: 'quran_recite_students_v3',
   ASSIGNMENTS: 'quran_recite_assignments_v3',
   SUBMISSIONS: 'quran_recite_submissions_v2',
-  CURRENT_USER: 'quran_recite_current_user',
 };
 
 // Seed initial classes
@@ -25,69 +24,6 @@ export const INITIAL_CLASSES: ClassRoom[] = [
   { id: 'class-4', name: 'الفرقة ٤', createdAt: '2026-09-01T10:00:00Z' },
   { id: 'class-5', name: 'الفرقة ٥', createdAt: '2026-09-01T10:00:00Z' },
 ];
-
-// IndexedDB Helper for local audio
-const DB_NAME = 'QuranReciteAudioDB';
-const STORE_NAME = 'recordings';
-
-function openAudioDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const dbInstance = request.result;
-      if (!dbInstance.objectStoreNames.contains(STORE_NAME)) {
-        dbInstance.createObjectStore(STORE_NAME);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-export async function saveAudioToIDB(id: string, base64Audio: string): Promise<void> {
-  try {
-    const database = await openAudioDB();
-    return new Promise((resolve, reject) => {
-      const tx = database.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      store.put(base64Audio, id);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch (err) {
-    console.warn('IDB save error', err);
-  }
-}
-
-export async function getAudioFromIDB(id: string): Promise<string | null> {
-  try {
-    const database = await openAudioDB();
-    return new Promise((resolve, reject) => {
-      const tx = database.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const request = store.get(id);
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => reject(request.error);
-    });
-  } catch {
-    return null;
-  }
-}
-
-export async function deleteAudioFromIDB(id: string): Promise<void> {
-  try {
-    const database = await openAudioDB();
-    return new Promise((resolve, reject) => {
-      const tx = database.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      store.delete(id);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch (err) {
-    console.warn('IDB delete error', err);
-  }
-}
 
 // ----------------------------------------------------
 // Local Storage synchronous getters
@@ -171,8 +107,12 @@ export function subscribeToCloudData(callbacks: {
       cloudStudents.push({ id: d.id, ...(d.data() as Omit<Student, 'id'>) });
     });
     cloudStudents.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(cloudStudents));
-    callbacks.onStudentsChange(cloudStudents);
+    if (cloudStudents.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(cloudStudents));
+      callbacks.onStudentsChange(cloudStudents);
+    } else {
+      callbacks.onStudentsChange(getStudents());
+    }
   }, (err) => console.warn('Students listener err:', err));
 
   const unsubAssignments = onSnapshot(collection(db, 'assignments'), (snapshot) => {
@@ -186,44 +126,36 @@ export function subscribeToCloudData(callbacks: {
   }, (err) => console.warn('Assignments listener err:', err));
 
   const unsubSubmissions = onSnapshot(collection(db, 'submissions'), (snapshot) => {
-    const localSubmissions = getSubmissions();
-    const localMap = new Map<string, Submission>();
-    localSubmissions.forEach((s) => localMap.set(s.id, s));
-
-    const mergedSubmissions: Submission[] = [];
+    const cloudSubmissions: Submission[] = [];
 
     snapshot.forEach((d) => {
-      const cloudData = d.data() as Omit<Submission, 'id'>;
-      const localData = localMap.get(d.id);
-
-      const merged: Submission = {
+      const data = d.data() as Omit<Submission, 'id'>;
+      cloudSubmissions.push({
         id: d.id,
-        assignmentId: cloudData.assignmentId,
-        assignmentTitle: cloudData.assignmentTitle || localData?.assignmentTitle || '',
-        studentId: cloudData.studentId,
-        studentName: cloudData.studentName || localData?.studentName || '',
-        personalNumber: cloudData.personalNumber || localData?.personalNumber || '',
-        classId: cloudData.classId || localData?.classId || '',
-        className: cloudData.className || localData?.className || '',
-        submittedAt: cloudData.submittedAt,
-        durationSeconds: cloudData.durationSeconds || localData?.durationSeconds || 0,
-        transcribedText: cloudData.transcribedText || localData?.transcribedText || '',
-        accuracyPercentage: cloudData.accuracyPercentage ?? localData?.accuracyPercentage ?? 100,
-        aiScore: cloudData.aiScore ?? localData?.aiScore ?? 10,
-        tajweedScore: cloudData.tajweedScore ?? localData?.tajweedScore ?? 10,
-        tajweedReport: cloudData.tajweedReport || localData?.tajweedReport,
-        teacherGrade: cloudData.teacherGrade !== undefined ? cloudData.teacherGrade : (localData?.teacherGrade ?? null),
-        teacherNotes: cloudData.teacherNotes !== undefined ? cloudData.teacherNotes : (localData?.teacherNotes || ''),
-        wordEvaluations: cloudData.wordEvaluations || localData?.wordEvaluations || [],
-        audioBase64: localData?.audioBase64 || cloudData?.audioBase64 || '',
-      };
-
-      mergedSubmissions.push(merged);
+        assignmentId: data.assignmentId || '',
+        assignmentTitle: data.assignmentTitle || '',
+        studentId: data.studentId || '',
+        studentName: data.studentName || '',
+        personalNumber: data.personalNumber || '',
+        classId: data.classId || '',
+        className: data.className || '',
+        submittedAt: data.submittedAt || new Date().toISOString(),
+        durationSeconds: data.durationSeconds || 0,
+        transcribedText: data.transcribedText || '',
+        accuracyPercentage: data.accuracyPercentage ?? 100,
+        aiScore: data.aiScore ?? 10,
+        tajweedScore: data.tajweedScore ?? 10,
+        tajweedReport: data.tajweedReport || null,
+        teacherGrade: data.teacherGrade !== undefined ? data.teacherGrade : null,
+        teacherNotes: data.teacherNotes || '',
+        wordEvaluations: data.wordEvaluations || [],
+        audioBase64: '', // مجرد تماماً من الصوت
+      });
     });
 
-    mergedSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
-    localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(mergedSubmissions));
-    callbacks.onSubmissionsChange(mergedSubmissions);
+    cloudSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
+    localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(cloudSubmissions));
+    callbacks.onSubmissionsChange(cloudSubmissions);
   }, (err) => console.warn('Submissions listener err:', err));
 
   return () => {
@@ -453,22 +385,19 @@ export async function saveSubmission(
   const submissions = getSubmissions();
   const id = `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
-  if (submission.audioBase64) {
-    await saveAudioToIDB(id, submission.audioBase64);
-  }
-
   const newSubmission: Submission = {
     ...submission,
     id,
     submittedAt: new Date().toISOString(),
     teacherGrade: submission.teacherGrade ?? null,
     teacherNotes: submission.teacherNotes || '',
-    audioBase64: submission.audioBase64 || '',
+    audioBase64: '', // عدم تخزين أو إرسال التسجيل الصوتي
   };
 
   submissions.unshift(newSubmission);
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
 
+  // رفع البيانات الأساسية ونسبة التقييم والأرقام فقط للسحابة
   const cloudSubmission: Record<string, any> = {
     id: newSubmission.id,
     assignmentId: newSubmission.assignmentId,
@@ -502,15 +431,6 @@ export async function saveSubmission(
   return newSubmission;
 }
 
-export async function getSubmissionAudio(submission: Submission): Promise<string> {
-  if (submission.audioBase64 && submission.audioBase64.startsWith('data:audio')) {
-    return submission.audioBase64;
-  }
-  const idbAudio = await getAudioFromIDB(submission.id);
-  if (idbAudio) return idbAudio;
-  return submission.audioBase64 || '';
-}
-
 export async function updateSubmissionTeacherFeedback(
   submissionId: string,
   teacherGrade: number | null,
@@ -534,7 +454,6 @@ export async function updateSubmissionTeacherFeedback(
 export async function deleteSubmission(submissionId: string): Promise<void> {
   const submissions = getSubmissions().filter((s) => s.id !== submissionId);
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
-  await deleteAudioFromIDB(submissionId);
 
   try {
     await deleteDoc(doc(db, 'submissions', submissionId));
