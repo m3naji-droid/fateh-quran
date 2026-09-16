@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, Square, RotateCcw, Send, Play, Pause, AlertCircle, Sparkles, Volume2 } from 'lucide-react';
+import { Mic, Square, RotateCcw, Send, Play, Pause, AlertCircle, Sparkles } from 'lucide-react';
 
 interface AudioRecorderProps {
   onRecitationCompleted: (audioBase64: string, durationSeconds: number, transcribedText: string) => void;
@@ -23,6 +23,9 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   const timerIntervalRef = useRef<number | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
+
+  // مرجع لتخزين الـ Base64 بشكل مباشر لضمان عدم ضياعه في المحاولة الأولى
+  const rawBase64Ref = useRef<string | null>(null);
 
   // Initialize Speech Recognition for Arabic if available in browser
   useEffect(() => {
@@ -71,11 +74,11 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     audioChunksRef.current = [];
     setAudioUrl(null);
     setBase64Audio(null);
+    rawBase64Ref.current = null;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Determine best audio mimeType supported
       const mimeTypes = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
       let selectedMime = '';
       for (const m of mimeTypes) {
@@ -99,34 +102,30 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
         const url = URL.createObjectURL(audioBlob);
         setAudioUrl(url);
 
-        // Convert blob to Base64 data URL for durable storage and cross-session playback
+        // Convert blob to Base64 immediately and securely via Promise/FileReader
         const reader = new FileReader();
         reader.onloadend = () => {
           const base64data = reader.result as string;
+          rawBase64Ref.current = base64data;
           setBase64Audio(base64data);
         };
         reader.readAsDataURL(audioBlob);
 
-        // Stop all audio tracks to free mic indicator
         stream.getTracks().forEach(track => track.stop());
       };
 
-      mediaRecorder.start(250); // Slice every 250ms
+      mediaRecorder.start(250);
       setRecordingState('recording');
       setRecordDuration(0);
 
-      // Start duration counter
       timerIntervalRef.current = window.setInterval(() => {
         setRecordDuration(prev => prev + 1);
       }, 1000);
 
-      // Start Arabic speech recognition
       if (recognitionRef.current) {
         try {
           recognitionRef.current.start();
-        } catch (e) {
-          // May already be running
-        }
+        } catch (e) {}
       }
     } catch (err: any) {
       console.error('Microphone error:', err);
@@ -164,6 +163,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     setRecordDuration(0);
     setAudioUrl(null);
     setBase64Audio(null);
+    rawBase64Ref.current = null;
     setTranscribedText('');
     setIsPreviewPlaying(false);
   };
@@ -181,8 +181,11 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
   };
 
   const handleSubmit = () => {
-    if (!base64Audio && !audioUrl) return;
-    onRecitationCompleted(base64Audio || audioUrl || '', recordDuration, transcribedText);
+    // استخدام الـ Ref المباشر يضمن عدم ضياع البيانات أبداً حتى في المحاولة الأولى
+    const finalAudio = rawBase64Ref.current || base64Audio || audioUrl;
+    if (!finalAudio) return;
+    
+    onRecitationCompleted(finalAudio, recordDuration, transcribedText);
   };
 
   const formatTimer = (seconds: number) => {
@@ -244,7 +247,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
         {recordingState === 'recording' && (
           <div className="flex flex-col items-center gap-4 w-full">
-            {/* Animated audio wave bars */}
             <div className="flex items-center justify-center gap-1.5 h-12">
               {[40, 70, 30, 90, 60, 100, 45, 80, 50, 95, 35, 85, 60, 40].map((h, i) => (
                 <div
@@ -259,7 +261,6 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
               ))}
             </div>
 
-            {/* Live speech transcription badge if recognizing */}
             {transcribedText && (
               <div className="max-w-md text-center bg-white/90 px-3 py-1.5 rounded-lg border border-emerald-200 text-xs text-emerald-900 font-quran">
                 "{transcribedText}"
