@@ -185,7 +185,6 @@ export function subscribeToCloudData(callbacks: {
     callbacks.onAssignmentsChange(cloudAssignments);
   }, (err) => console.warn('Assignments listener err:', err));
 
-  // تم تحديث الدالة لدمج البيانات السحابية مع المحلية حتى لا تختفي الدرجات والصوتيات
   const unsubSubmissions = onSnapshot(collection(db, 'submissions'), (snapshot) => {
     const localSubmissions = getSubmissions();
     const localMap = new Map<string, Submission>();
@@ -194,7 +193,7 @@ export function subscribeToCloudData(callbacks: {
     const mergedSubmissions: Submission[] = [];
 
     snapshot.forEach((d) => {
-      const cloudData = d.data() as Omit<Submission, 'id'>;
+      const cloudData = d.data() as any;
       const localData = localMap.get(d.id);
 
       const merged: Submission = {
@@ -202,15 +201,16 @@ export function subscribeToCloudData(callbacks: {
         assignmentId: cloudData.assignmentId,
         studentId: cloudData.studentId,
         submittedAt: cloudData.submittedAt,
-        // تفضيل التقييم إن وُجد في السحابة، أو الاحتفاظ بالمحلي
         teacherGrade: cloudData.teacherGrade !== undefined ? cloudData.teacherGrade : (localData?.teacherGrade ?? null),
         teacherNotes: cloudData.teacherNotes !== undefined ? cloudData.teacherNotes : (localData?.teacherNotes || ''),
-        // الحفاظ على الملف الصوتي المحلي
-        audioBase64: localData?.audioBase64 || '',
+        aiGrade: cloudData.aiGrade ?? localData?.aiGrade ?? 10,
+        tajweedGrade: cloudData.tajweedGrade ?? localData?.tajweedGrade ?? 10,
+        accuracy: cloudData.accuracy ?? localData?.accuracy ?? 100,
+        audioBase64: localData?.audioBase64 || cloudData?.audioBase64 || '',
       };
 
-      if ((cloudData as any).textAnswer) {
-        (merged as any).textAnswer = (cloudData as any).textAnswer;
+      if (cloudData.textAnswer) {
+        (merged as any).textAnswer = cloudData.textAnswer;
       }
 
       mergedSubmissions.push(merged);
@@ -458,6 +458,9 @@ export async function saveSubmission(
     submittedAt: new Date().toISOString(),
     teacherGrade: submission.teacherGrade ?? null,
     teacherNotes: submission.teacherNotes || '',
+    aiGrade: (submission as any).aiGrade ?? 10,
+    tajweedGrade: (submission as any).tajweedGrade ?? 10,
+    accuracy: (submission as any).accuracy ?? 100,
     audioBase64: submission.audioBase64 || '',
   };
 
@@ -471,9 +474,12 @@ export async function saveSubmission(
     submittedAt: newSubmission.submittedAt,
     teacherGrade: newSubmission.teacherGrade,
     teacherNotes: newSubmission.teacherNotes,
+    aiGrade: newSubmission.aiGrade,
+    tajweedGrade: newSubmission.tajweedGrade,
+    accuracy: newSubmission.accuracy,
   };
 
-  if ((newSubmission as any).textAnswer !== undefined) {
+  if ((newSubmission as any).textAnswer) {
     cloudSubmission.textAnswer = (newSubmission as any).textAnswer;
   }
 
