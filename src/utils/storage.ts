@@ -7,7 +7,6 @@ import {
   deleteDoc,
   updateDoc,
   onSnapshot,
-  ensureAuth,
 } from '../lib/firebase';
 
 const STORAGE_KEYS = {
@@ -145,8 +144,6 @@ export function subscribeToCloudData(callbacks: {
   onAssignmentsChange: (assignments: Assignment[]) => void;
   onSubmissionsChange: (submissions: Submission[]) => void;
 }) {
-  ensureAuth();
-
   const unsubClasses = onSnapshot(collection(db, 'classes'), (snapshot) => {
     if (!snapshot.empty) {
       const cloudClasses: ClassRoom[] = [];
@@ -477,7 +474,7 @@ export async function updateSubmissionTeacherFeedback(
 }
 
 export async function deleteSubmission(submissionId: string): Promise<void> {
-  const submissions = getSubmissions().filter((s) => s.id !== submissionId);
+  const submissions = getSubmissions().filter((s) => s.id !== studentId);
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
   await deleteAudioFromIDB(submissionId);
 
