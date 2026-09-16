@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { X, CheckCircle2, AlertTriangle, XCircle, Award, Sparkles, Volume2, ArrowRight } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, CheckCircle2, AlertTriangle, XCircle, Award, Sparkles, Volume2, ArrowRight, Send } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { WordEvaluation } from '../types';
 import { AudioPlayer } from './AudioPlayer';
@@ -31,16 +31,21 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   audioBase64,
   onGoToHistory,
 }) => {
+  const [isSentConfirmed, setIsSentConfirmed] = useState(false);
+
   useEffect(() => {
-    if (isOpen && aiScore >= 8) {
-      try {
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 },
-          colors: ['#059669', '#10b981', '#f59e0b', '#d97706', '#34d399']
-        });
-      } catch {}
+    if (isOpen) {
+      setIsSentConfirmed(false); // إعادة تعيين حالة التأكيد عند فتح النافذة
+      if (aiScore >= 8) {
+        try {
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#059669', '#10b981', '#f59e0b', '#d97706', '#34d399']
+          });
+        } catch {}
+      }
     }
   }, [isOpen, aiScore]);
 
@@ -50,6 +55,15 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const mispronouncedWords = wordEvaluations.filter(w => w.status === 'mispronounced').length;
   const missingWords = wordEvaluations.filter(w => w.status === 'missing').length;
 
+  const handleConfirmAndSend = () => {
+    setIsSentConfirmed(true);
+    // إغلاق النافذة بعد تأكيد الإرسال بلحظات قصيرة ليطمئن الطالب
+    setTimeout(() => {
+      onClose();
+      if (onGoToHistory) onGoToHistory();
+    }, 1200);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
       <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-emerald-100 overflow-hidden my-6">
@@ -57,7 +71,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         <div className="bg-linear-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white p-6 relative">
           <button
             onClick={onClose}
-            className="absolute top-5 left-5 text-white/80 hover:text-white p-1 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            className="absolute top-5 left-5 text-white/80 hover:text-white p-1 rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
             title="إغلاق"
           >
             <X className="w-5 h-5" />
@@ -194,26 +208,50 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             <TajweedBreakdownCard report={tajweedReport} compact={false} />
           )}
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-            {onGoToHistory && (
-              <button
-                onClick={() => {
-                  onClose();
-                  onGoToHistory();
-                }}
-                className="w-full sm:flex-1 py-3 px-4 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
-              >
-                <span>الانتقال إلى سجل تلاواتي ومتابعة مستواي</span>
-                <ArrowRight className="w-4 h-4 rotate-180" />
-              </button>
-            )}
+          {/* Action Buttons & Confirm Submit to Teacher */}
+          <div className="space-y-3 pt-2">
             <button
-              onClick={onClose}
-              className="w-full sm:w-auto py-3 px-6 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-all"
+              onClick={handleConfirmAndSend}
+              disabled={isSentConfirmed}
+              className={`w-full py-3.5 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer ${
+                isSentConfirmed 
+                  ? 'bg-emerald-600 text-white' 
+                  : 'bg-linear-to-r from-emerald-700 via-emerald-800 to-teal-900 hover:from-emerald-800 hover:to-teal-950 text-white'
+              }`}
             >
-              إغلاق
+              {isSentConfirmed ? (
+                <>
+                  <CheckCircle2 className="w-5 h-5 text-amber-300 animate-bounce" />
+                  <span>تم اعتماد وإرسال النتيجة لمعلم الصف بنجاح!</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 rotate-180 text-amber-300" />
+                  <span>تأكيد وإرسال التلاوة الرسمية لمعلم الصف</span>
+                </>
+              )}
             </button>
+
+            <div className="flex items-center gap-3">
+              {onGoToHistory && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onGoToHistory();
+                  }}
+                  className="flex-1 py-2.5 px-4 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <span>الانتقال إلى سجل تلاواتي</span>
+                  <ArrowRight className="w-4 h-4 rotate-180" />
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="py-2.5 px-6 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                إغلاق
+              </button>
+            </div>
           </div>
         </div>
       </div>
