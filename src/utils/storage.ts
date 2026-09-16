@@ -474,7 +474,7 @@ export async function updateSubmissionTeacherFeedback(
 }
 
 export async function deleteSubmission(submissionId: string): Promise<void> {
-  const submissions = getSubmissions().filter((s) => s.id !== studentId);
+  const submissions = getSubmissions().filter((s) => s.id !== submissionId);
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
   await deleteAudioFromIDB(submissionId);
 
