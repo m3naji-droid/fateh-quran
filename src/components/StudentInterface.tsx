@@ -8,7 +8,7 @@ import { StudentHistory } from './StudentHistory';
 import { SurahYasinView } from './SurahYasinView';
 import { InteractiveTrainingMode } from './InteractiveTrainingMode';
 import { evaluateRecitationLocally, EvaluationResult } from '../utils/evaluationEngine';
-import { saveSubmission } from '../utils/storage';
+import { saveSubmission, getSubmissions } from '../utils/storage';
 import { AudioPlayer } from './AudioPlayer';
 import { MisharyAyahPlayer } from './MisharyAyahPlayer';
 
@@ -44,8 +44,10 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
   const classAssignments = assignments.filter((a) => a.classId === student.classId || a.classId === 'all');
   const currentAssignment = classAssignments.find((a) => a.id === selectedAssignmentId) || classAssignments[0];
 
-  // Check if student already submitted this assignment
-  const mySubmissions = submissions.filter((s) => s.studentId === student.id);
+  // Combine props submissions and direct local storage check to prevent any data loss on refresh
+  const allCurrentSubmissions = submissions.length > 0 ? submissions : getSubmissions();
+  const mySubmissions = allCurrentSubmissions.filter((s) => s.studentId === student.id);
+  
   const existingSubmission = currentAssignment 
     ? mySubmissions.find((s) => s.assignmentId === currentAssignment.id)
     : null;
@@ -66,10 +68,8 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
     setSubmittedAudioBase64(audioBase64);
 
     try {
-      // Small natural delay so user sees AI processing
       await new Promise((res) => setTimeout(res, 800));
 
-      // Local AI evaluation engine
       const evalResult = evaluateRecitationLocally(
         transcribedText,
         currentAssignment.startAyah,
@@ -77,7 +77,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
         durationSeconds
       );
 
-      // Save submission to persistent storage
+      // Save submission to persistent storage & cloud
       await saveSubmission({
         studentId: student.id,
         studentName: student.name,
@@ -158,7 +158,6 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
       {/* VIEW 1: CURRENT ASSIGNMENT & RECORDER */}
       {activeTab === 'current-assignment' && (
         <div className="space-y-6">
-          {/* Assignment Selector & Header Banner */}
           <div className="bg-linear-to-r from-emerald-900 via-teal-900 to-emerald-950 text-white rounded-3xl p-6 sm:p-8 shadow-sm relative overflow-hidden">
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
@@ -180,7 +179,6 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                 )}
               </div>
 
-              {/* Assignment Switcher if multiple assignments exist */}
               {classAssignments.length > 1 && (
                 <div className="bg-white/10 p-2 rounded-2xl border border-white/20">
                   <label className="text-[10px] text-emerald-200 block mb-1 font-bold">
@@ -214,7 +212,6 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
             </div>
           ) : (
             <>
-              {/* Quick Jump Banner to Training & Repeat Mode */}
               <div className="bg-linear-to-r from-amber-500/15 via-emerald-500/15 to-teal-500/15 p-4 rounded-3xl border border-amber-300/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -238,7 +235,6 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                 </button>
               </div>
 
-              {/* Mishary Alafasy Recitation Player */}
               <MisharyAyahPlayer
                 startAyah={currentAssignment.startAyah}
                 endAyah={currentAssignment.endAyah}
@@ -246,9 +242,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                 onActiveAyahChange={setActiveAyahListening}
               />
 
-              {/* Quranic Verses Display Box */}
               <div className="bg-white rounded-3xl p-6 sm:p-8 border border-emerald-100 shadow-xs relative">
-                {/* Decorative title & badges */}
                 <div className="flex items-center justify-between pb-4 border-b border-stone-100 mb-6">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
@@ -261,16 +255,14 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                   </span>
                 </div>
 
-                {/* Basmalah if starting from ayah 1 */}
                 {currentAssignment.startAyah === 1 && (
                   <div className="text-center mb-6">
                     <p className="text-xl sm:text-2xl font-quran text-emerald-900 font-bold">
-                      بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+                      بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
                     </p>
                   </div>
                 )}
 
-                {/* Verses Container */}
                 <div className="bg-[#fcfbf7] rounded-2xl p-6 sm:p-8 border border-amber-100 shadow-inner">
                   <div className="text-right leading-loose text-2xl sm:text-3xl font-quran text-stone-900 select-none">
                     {currentAyahs.map((ayah) => {
@@ -308,7 +300,6 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                 )}
               </div>
 
-              {/* Submission Status or Recorder */}
               {existingSubmission ? (
                 <div className="bg-white rounded-3xl p-6 sm:p-8 border border-emerald-200 shadow-xs space-y-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-stone-100">
@@ -375,7 +366,6 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                     </div>
                   </div>
 
-                  {/* Audio Player for this submitted recording */}
                   <div>
                     <span className="text-xs font-bold text-stone-700 block mb-2">
                       تسجيلك الصوتي المرسل:
@@ -390,7 +380,6 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                   )}
                 </div>
               ) : (
-                /* Active Audio Recorder */
                 <div>
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -415,7 +404,6 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
         </div>
       )}
 
-      {/* VIEW 2: INTERACTIVE TRAINING & REPEAT MODE */}
       {activeTab === 'training' && (
         <div className="space-y-6">
           {currentAssignment ? (
@@ -433,17 +421,14 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
         </div>
       )}
 
-      {/* VIEW 3: RECIEVED HISTORY & PROGRESS */}
       {activeTab === 'my-history' && (
         <StudentHistory submissions={mySubmissions} />
       )}
 
-      {/* VIEW 4: FULL SURAH YASIN */}
       {activeTab === 'full-surah' && (
         <SurahYasinView />
       )}
 
-      {/* Evaluation Results Modal */}
       {currentEvaluation && (
         <EvaluationModal
           isOpen={showEvaluationModal}
