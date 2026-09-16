@@ -14,19 +14,21 @@ import {
   limit,
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously } from 'firebase/auth';
+
 const firebaseConfig = {
- apiKey: "AIzaSyA2CR66DY5I3TCn_gqXvwTjJUCq2ZKZW08",
- authDomain: "grounded-technique-rgmzr.firebaseapp.com",
- projectId: "grounded-technique-rgmzr",
- storageBucket: "grounded-technique-rgmzr.firebasestorage.app",
- messagingSenderId: "944676198315",
- appId: "1:944676198315:web:5bf9874602742ff930a4ee",
- firestoreDatabaseId: "ai-studio-420cd5a9-0ed-4e84-97e9-7649c7b7816a"
+  apiKey: "AIzaSyA2CR66DY5I3TCn_gqXvwTjJUCq2ZKZW08",
+  authDomain: "grounded-technique-rgmzr.firebaseapp.com",
+  projectId: "grounded-technique-rgmzr",
+  storageBucket: "grounded-technique-rgmzr.firebasestorage.app",
+  messagingSenderId: "944676198315",
+  appId: "1:944676198315:web:5bf9874602742ff930a4ee",
+  firestoreDatabaseId: "ai-studio-420cd5a9-10ed-4e84-97e9-7649c7b7816a"
 };
+
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore
+// Initialize Firestore with corrected database ID
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
