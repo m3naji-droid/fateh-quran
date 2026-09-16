@@ -27,7 +27,6 @@ export default function App() {
   const [students, setStudents] = useState(getStudents);
   const [assignments, setAssignments] = useState(getAssignments);
   const [submissions, setSubmissions] = useState(getSubmissions);
-  const [isCloudSyncing, setIsCloudSyncing] = useState(true);
 
   // Student active tab
   const [studentActiveTab, setStudentActiveTab] = useState<string>('current-assignment');
@@ -38,14 +37,33 @@ export default function App() {
   // Real-time Cloud Firestore subscription
   useEffect(() => {
     const unsubscribe = subscribeToCloudData({
-      onClassesChange: (newClasses) => setClasses([...newClasses]),
-      onStudentsChange: (newStudents) => setStudents([...newStudents]),
-      onAssignmentsChange: (newAssignments) => setAssignments([...newAssignments]),
+      onClassesChange: (newClasses) => {
+        setClasses([...newClasses]);
+      },
+      onStudentsChange: (newStudents) => {
+        setStudents([...newStudents]);
+        
+        // تحديث جلسة الطالب الحالية تلقائياً في حال تعديلها أو إضافتها سحابياً
+        setCurrentUser((prevUser) => {
+          if (prevUser.role === 'student' && prevUser.student) {
+            const updatedStudent = newStudents.find((s) => s.id === prevUser.student?.id);
+            if (updatedStudent) {
+              const updatedUser: CurrentUser = { ...prevUser, student: updatedStudent };
+              localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(updatedUser));
+              return updatedUser;
+            }
+          }
+          return prevUser;
+        });
+      },
+      onAssignmentsChange: (newAssignments) => {
+        setAssignments([...newAssignments]);
+      },
       onSubmissionsChange: (newSubmissions) => {
         setSubmissions([...newSubmissions]);
-        setIsCloudSyncing(false);
       },
     });
+
     return () => unsubscribe();
   }, []);
 
