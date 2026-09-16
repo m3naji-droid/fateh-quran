@@ -307,7 +307,7 @@ export async function saveBulkStudents(
         name: item.name.trim(),
         personalNumber: item.personalNumber.trim(),
         classId: item.classId,
-        createdAt: new Date().toISOString(),
+        createdAt: newStdDate(),
       };
       students.push(newStd);
       addedCount++;
@@ -422,7 +422,7 @@ export async function saveSubmission(
   const submissions = getSubmissions();
   const id = `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
-  // 1. حفظ التسجيل الصوتي كاملاً في IndexedDB محلياً
+  // 1. حفظ الصوت محلياً بحجمه الكامل في IndexedDB
   if (submission.audioBase64) {
     await saveAudioToIDB(id, submission.audioBase64);
   }
@@ -436,11 +436,9 @@ export async function saveSubmission(
   submissions.unshift(newSubmission);
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
 
-  // 2. تقليم التسجيل الصوتي المرفوع للسحابة فقط لتجنب خطأ الحجم الأقصى (1MB) في Firestore
+  // 2. تجهيز بيانات التسليم السحابية بدون حقل الصوت الضخم لضمان القبول الفوري في Firestore
   const cloudSubmission = { ...newSubmission };
-  if (cloudSubmission.audioBase64 && cloudSubmission.audioBase64.length > 700000) {
-    cloudSubmission.audioBase64 = cloudSubmission.audioBase64.substring(0, 700000);
-  }
+  delete (cloudSubmission as any).audioBase64;
 
   try {
     await setDoc(doc(db, 'submissions', id), cloudSubmission);
