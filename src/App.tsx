@@ -19,7 +19,9 @@ export default function App() {
     try {
       const saved = localStorage.getItem(SESSION_STORAGE_KEY);
       if (saved) return JSON.parse(saved);
-    } catch {}
+    } catch (err) {
+      console.warn('Session load error:', err);
+    }
     return { role: 'none' };
   });
 
@@ -149,14 +151,14 @@ export default function App() {
         )}
       </main>
 
-      {/* Subtle Islamic Footer */}
+      {/* Subtle Footer */}
       <footer className="border-t border-emerald-100/80 bg-white/70 py-6 text-center text-xs text-stone-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="font-semibold text-emerald-950">
             مقرأة الفاتح لتصحيح التلاوة وتجويد سورة يس المباركة
           </p>
           <p className="text-[11px] text-stone-400">
-            تصميم متجاوب بالكامل • محرك تقييم ذكي فوري • حفظ صوتي دائم
+            تصميم متجاوب بالكامل • محرك تقييم ذكي فوري • مزامنة سحابية سريعة
           </p>
         </div>
       </footer>
