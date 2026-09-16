@@ -193,25 +193,30 @@ export function subscribeToCloudData(callbacks: {
     const mergedSubmissions: Submission[] = [];
 
     snapshot.forEach((d) => {
-      const cloudData = d.data() as any;
+      const cloudData = d.data() as Omit<Submission, 'id'>;
       const localData = localMap.get(d.id);
 
       const merged: Submission = {
         id: d.id,
         assignmentId: cloudData.assignmentId,
+        assignmentTitle: cloudData.assignmentTitle || localData?.assignmentTitle || '',
         studentId: cloudData.studentId,
+        studentName: cloudData.studentName || localData?.studentName || '',
+        personalNumber: cloudData.personalNumber || localData?.personalNumber || '',
+        classId: cloudData.classId || localData?.classId || '',
+        className: cloudData.className || localData?.className || '',
         submittedAt: cloudData.submittedAt,
+        durationSeconds: cloudData.durationSeconds || localData?.durationSeconds || 0,
+        transcribedText: cloudData.transcribedText || localData?.transcribedText || '',
+        accuracyPercentage: cloudData.accuracyPercentage ?? localData?.accuracyPercentage ?? 100,
+        aiScore: cloudData.aiScore ?? localData?.aiScore ?? 10,
+        tajweedScore: cloudData.tajweedScore ?? localData?.tajweedScore ?? 10,
+        tajweedReport: cloudData.tajweedReport || localData?.tajweedReport,
         teacherGrade: cloudData.teacherGrade !== undefined ? cloudData.teacherGrade : (localData?.teacherGrade ?? null),
         teacherNotes: cloudData.teacherNotes !== undefined ? cloudData.teacherNotes : (localData?.teacherNotes || ''),
-        aiGrade: cloudData.aiGrade ?? localData?.aiGrade ?? 10,
-        tajweedGrade: cloudData.tajweedGrade ?? localData?.tajweedGrade ?? 10,
-        accuracy: cloudData.accuracy ?? localData?.accuracy ?? 100,
+        wordEvaluations: cloudData.wordEvaluations || localData?.wordEvaluations || [],
         audioBase64: localData?.audioBase64 || cloudData?.audioBase64 || '',
       };
-
-      if (cloudData.textAnswer) {
-        (merged as any).textAnswer = cloudData.textAnswer;
-      }
 
       mergedSubmissions.push(merged);
     });
@@ -458,9 +463,6 @@ export async function saveSubmission(
     submittedAt: new Date().toISOString(),
     teacherGrade: submission.teacherGrade ?? null,
     teacherNotes: submission.teacherNotes || '',
-    aiGrade: (submission as any).aiGrade ?? 10,
-    tajweedGrade: (submission as any).tajweedGrade ?? 10,
-    accuracy: (submission as any).accuracy ?? 100,
     audioBase64: submission.audioBase64 || '',
   };
 
@@ -470,17 +472,25 @@ export async function saveSubmission(
   const cloudSubmission: Record<string, any> = {
     id: newSubmission.id,
     assignmentId: newSubmission.assignmentId,
+    assignmentTitle: newSubmission.assignmentTitle || '',
     studentId: newSubmission.studentId,
+    studentName: newSubmission.studentName || '',
+    personalNumber: newSubmission.personalNumber || '',
+    classId: newSubmission.classId || '',
+    className: newSubmission.className || '',
     submittedAt: newSubmission.submittedAt,
+    durationSeconds: newSubmission.durationSeconds || 0,
+    transcribedText: newSubmission.transcribedText || '',
+    accuracyPercentage: newSubmission.accuracyPercentage ?? 100,
+    aiScore: newSubmission.aiScore ?? 10,
+    tajweedScore: newSubmission.tajweedScore ?? 10,
     teacherGrade: newSubmission.teacherGrade,
     teacherNotes: newSubmission.teacherNotes,
-    aiGrade: newSubmission.aiGrade,
-    tajweedGrade: newSubmission.tajweedGrade,
-    accuracy: newSubmission.accuracy,
+    wordEvaluations: newSubmission.wordEvaluations || [],
   };
 
-  if ((newSubmission as any).textAnswer) {
-    cloudSubmission.textAnswer = (newSubmission as any).textAnswer;
+  if (newSubmission.tajweedReport) {
+    cloudSubmission.tajweedReport = newSubmission.tajweedReport;
   }
 
   try {
