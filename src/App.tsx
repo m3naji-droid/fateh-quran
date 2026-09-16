@@ -9,6 +9,7 @@ import {
   getStudents,
   getAssignments,
   getSubmissions,
+  subscribeToCloudData,
 } from './utils/storage';
 
 const SESSION_STORAGE_KEY = 'quran_recite_session_user';
@@ -26,12 +27,27 @@ export default function App() {
   const [students, setStudents] = useState(getStudents);
   const [assignments, setAssignments] = useState(getAssignments);
   const [submissions, setSubmissions] = useState(getSubmissions);
+  const [isCloudSyncing, setIsCloudSyncing] = useState(true);
 
   // Student active tab
   const [studentActiveTab, setStudentActiveTab] = useState<string>('current-assignment');
 
   // Teacher active section
   const [teacherActiveSection, setTeacherActiveSection] = useState<'submissions' | 'classes' | 'assignments'>('submissions');
+
+  // Real-time Cloud Firestore subscription
+  useEffect(() => {
+    const unsubscribe = subscribeToCloudData({
+      onClassesChange: (newClasses) => setClasses([...newClasses]),
+      onStudentsChange: (newStudents) => setStudents([...newStudents]),
+      onAssignmentsChange: (newAssignments) => setAssignments([...newAssignments]),
+      onSubmissionsChange: (newSubmissions) => {
+        setSubmissions([...newSubmissions]);
+        setIsCloudSyncing(false);
+      },
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Refresh all state from storage
   const refreshData = () => {

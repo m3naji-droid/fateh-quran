@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, LogOut, User, Sparkles, GraduationCap, ShieldCheck } from 'lucide-react';
+import { BookOpen, LogOut, User, Sparkles, GraduationCap, ShieldCheck, CloudCheck, Cloud } from 'lucide-react';
 import { CurrentUser } from '../types';
 
 interface NavbarProps {
@@ -124,6 +124,13 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* User Profile Info & Logout */}
           <div className="flex items-center gap-3">
+            {/* Realtime Cloud Sync Indicator */}
+            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50/90 text-emerald-800 border border-emerald-200/80 rounded-full text-[11px] font-semibold" title="قاعدة البيانات السحابية متصلة بالبث المباشر">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <Cloud className="w-3.5 h-3.5 text-emerald-600" />
+              <span>مزامنة سحابية حية</span>
+            </div>
+
             {currentUser.role === 'teacher' && (
               <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200/80 px-3 py-1.5 rounded-xl">
                 <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
