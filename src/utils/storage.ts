@@ -185,14 +185,40 @@ export function subscribeToCloudData(callbacks: {
     callbacks.onAssignmentsChange(cloudAssignments);
   }, (err) => console.warn('Assignments listener err:', err));
 
+  // تم تحديث الدالة لدمج البيانات السحابية مع المحلية حتى لا تختفي الدرجات والصوتيات
   const unsubSubmissions = onSnapshot(collection(db, 'submissions'), (snapshot) => {
-    const cloudSubmissions: Submission[] = [];
+    const localSubmissions = getSubmissions();
+    const localMap = new Map<string, Submission>();
+    localSubmissions.forEach((s) => localMap.set(s.id, s));
+
+    const mergedSubmissions: Submission[] = [];
+
     snapshot.forEach((d) => {
-      cloudSubmissions.push({ id: d.id, ...(d.data() as Omit<Submission, 'id'>) });
+      const cloudData = d.data() as Omit<Submission, 'id'>;
+      const localData = localMap.get(d.id);
+
+      const merged: Submission = {
+        id: d.id,
+        assignmentId: cloudData.assignmentId,
+        studentId: cloudData.studentId,
+        submittedAt: cloudData.submittedAt,
+        // تفضيل التقييم إن وُجد في السحابة، أو الاحتفاظ بالمحلي
+        teacherGrade: cloudData.teacherGrade !== undefined ? cloudData.teacherGrade : (localData?.teacherGrade ?? null),
+        teacherNotes: cloudData.teacherNotes !== undefined ? cloudData.teacherNotes : (localData?.teacherNotes || ''),
+        // الحفاظ على الملف الصوتي المحلي
+        audioBase64: localData?.audioBase64 || '',
+      };
+
+      if ((cloudData as any).textAnswer) {
+        (merged as any).textAnswer = (cloudData as any).textAnswer;
+      }
+
+      mergedSubmissions.push(merged);
     });
-    cloudSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
-    localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(cloudSubmissions));
-    callbacks.onSubmissionsChange(cloudSubmissions);
+
+    mergedSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
+    localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(mergedSubmissions));
+    callbacks.onSubmissionsChange(mergedSubmissions);
   }, (err) => console.warn('Submissions listener err:', err));
 
   return () => {
@@ -422,7 +448,6 @@ export async function saveSubmission(
   const submissions = getSubmissions();
   const id = `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
-  // 1. حفظ التسجيل الصوتي محلياً في IndexedDB
   if (submission.audioBase64) {
     await saveAudioToIDB(id, submission.audioBase64);
   }
@@ -436,11 +461,9 @@ export async function saveSubmission(
     audioBase64: submission.audioBase64 || '',
   };
 
-  // 2. المزامنة مع LocalStorage
   submissions.unshift(newSubmission);
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
 
-  // 3. تنظيف البيانات المرسلة للسحابة لمنع رفض Firestore بسبب قيم undefined
   const cloudSubmission: Record<string, any> = {
     id: newSubmission.id,
     assignmentId: newSubmission.assignmentId,
