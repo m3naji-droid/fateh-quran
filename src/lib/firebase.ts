@@ -14,15 +14,19 @@ import {
   limit,
 } from 'firebase/firestore';
 import { getAuth, signInAnonymously } from 'firebase/auth';
-import firebaseConfig from '../../firebase-applet-config.json';
-
+const firebaseConfig = {
+  apiKey: "AIzaSyA2CR66DY5I3TCn_gqXvwTjjUCq2ZKZW08",
+  authDomain: "grounded-technique-rgmzr.firebaseapp.com",
+  projectId: "grounded-technique-rgmzr",
+  storageBucket: "grounded-technique-rgmzr.firebasestorage.app",
+  messagingSenderId: "944676198315",
+  appId: "1:944676198315:web:5bf9874602742ff930a4ee"
+};
 // Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore specifying database ID if present
-export const db = firebaseConfig.firestoreDatabaseId
-  ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-  : getFirestore(app);
+// Initialize Firestore
+export const db = getFirestore(app);
 
 export const auth = getAuth(app);
 
