@@ -1,0 +1,6 @@
+{
+  "name": "مقرأة الفاتح لتصحيح التلاوة",
+  "description": "منصة تعليمية ذكية لإدارة وتصحيح تلاوة القرآن الكريم للطلاب وسورة يس مع مسجل صوتي وتقييم آلي ولوحة المعلم",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
