@@ -44,12 +44,28 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
   const classAssignments = assignments.filter((a) => a.classId === student.classId || a.classId === 'all');
   const currentAssignment = classAssignments.find((a) => a.id === selectedAssignmentId) || classAssignments[0];
 
-  // Combine props submissions and direct local storage check to prevent any data loss on refresh
-  const allCurrentSubmissions = submissions.length > 0 ? submissions : getSubmissions();
+  // دمج قوي جداً بين البروبس والتخزين المحلي لضمان عدم ضياع أو اختفاء أي استجابة عند التحديث (F5)
+  const allCurrentSubmissions = React.useMemo(() => {
+    const local = getSubmissions();
+    const mergedMap = new Map<string, Submission>();
+    // دمج البيانات لضمان شموليتها
+    [...(submissions || []), ...local].forEach((sub) => {
+      if (sub && sub.id) {
+        mergedMap.set(sub.id, sub);
+      }
+    });
+    return Array.from(mergedMap.values());
+  }, [submissions]);
+
+  // استخراج تلاوات الطالب الحالي فقط
   const mySubmissions = allCurrentSubmissions.filter((s) => s.studentId === student.id);
   
+  // البحث عن وجود تسليم للواجب الحالي بطريقة مطابقة مرنة (بالـ ID أو رقم الآيات) لضمان عدم اختفائه أبداً
   const existingSubmission = currentAssignment 
-    ? mySubmissions.find((s) => s.assignmentId === currentAssignment.id)
+    ? mySubmissions.find((s) => 
+        s.assignmentId === currentAssignment.id || 
+        s.assignmentTitle === currentAssignment.title
+      )
     : null;
 
   // Ayahs for current assignment
@@ -77,7 +93,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
         durationSeconds
       );
 
-      // Save submission to persistent storage & cloud
+      // حفظ التسجيل محلياً وفورياً في التخزين والسحابة
       await saveSubmission({
         studentId: student.id,
         studentName: student.name,
@@ -100,6 +116,8 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
 
       setCurrentEvaluation(evalResult);
       setShowEvaluationModal(true);
+      
+      // إبلاغ المكون الأب App لتحديث الحالة وإرسالها لمعلم الصف فوراً
       onSubmissionsUpdated();
     } catch (err) {
       console.error('Submission evaluation error:', err);
@@ -222,7 +240,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                       مُختبر التدريب والتصحيح التفاعلي (اسمع للشيخ وردّد وصحّح)
                     </h4>
                     <p className="text-[11px] text-stone-600">
-                      تدرّب على آيات الواجب آية بآية مع فحص أحكام التجويد (النون والميم الساكنة، المدود، القلقلة) قبل إرسال التسجيل النهائي.
+                      تدرّب على آيات الواجب آية بآية مع فحص أحكام التجويد قبل إرسال التسجيل النهائي.
                     </p>
                   </div>
                 </div>
@@ -310,7 +328,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                           تم إرسال تلاوة هذا الواجب بنجاح
                         </h3>
                         <p className="text-xs text-stone-500">
-                          بتاريخ {new Date(existingSubmission.submittedAt).toLocaleDateString('ar-SA')} • المدة: {existingSubmission.durationSeconds} ثانية
+                          بتاريخ {new Date(existingSubmission.submittedAt || Date.now()).toLocaleDateString('ar-SA')} • المدة: {existingSubmission.durationSeconds} ثانية
                         </p>
                       </div>
                     </div>
