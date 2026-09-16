@@ -107,12 +107,8 @@ export function subscribeToCloudData(callbacks: {
       cloudStudents.push({ id: d.id, ...(d.data() as Omit<Student, 'id'>) });
     });
     cloudStudents.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-    if (cloudStudents.length > 0) {
-      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(cloudStudents));
-      callbacks.onStudentsChange(cloudStudents);
-    } else {
-      callbacks.onStudentsChange(getStudents());
-    }
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(cloudStudents));
+    callbacks.onStudentsChange(cloudStudents);
   }, (err) => console.warn('Students listener err:', err));
 
   const unsubAssignments = onSnapshot(collection(db, 'assignments'), (snapshot) => {
@@ -149,7 +145,7 @@ export function subscribeToCloudData(callbacks: {
         teacherGrade: data.teacherGrade !== undefined ? data.teacherGrade : null,
         teacherNotes: data.teacherNotes || '',
         wordEvaluations: data.wordEvaluations || [],
-        audioBase64: '', // مجرد تماماً من الصوت
+        audioBase64: '', 
       });
     });
 
@@ -391,13 +387,12 @@ export async function saveSubmission(
     submittedAt: new Date().toISOString(),
     teacherGrade: submission.teacherGrade ?? null,
     teacherNotes: submission.teacherNotes || '',
-    audioBase64: '', // عدم تخزين أو إرسال التسجيل الصوتي
+    audioBase64: '', 
   };
 
   submissions.unshift(newSubmission);
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
 
-  // رفع البيانات الأساسية ونسبة التقييم والأرقام فقط للسحابة
   const cloudSubmission: Record<string, any> = {
     id: newSubmission.id,
     assignmentId: newSubmission.assignmentId,
