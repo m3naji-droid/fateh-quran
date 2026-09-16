@@ -307,7 +307,7 @@ export async function saveBulkStudents(
         name: item.name.trim(),
         personalNumber: item.personalNumber.trim(),
         classId: item.classId,
-        createdAt: newStdDate(),
+        createdAt: new Date().toISOString(),
       };
       students.push(newStd);
       addedCount++;
