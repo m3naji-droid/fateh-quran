@@ -150,8 +150,24 @@ export function subscribeToCloudData(callbacks: {
     });
 
     cloudSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
-    localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(cloudSubmissions));
-    callbacks.onSubmissionsChange(cloudSubmissions);
+    
+    // دمج ذكي مع التخزين المحلي لضمان عدم ضياع التسجيلات الفورية
+    const existingLocal = getSubmissions();
+    const mergedMap = new Map<string, Submission>();
+    [...cloudSubmissions, ...existingLocal].forEach((sub) => {
+      if (sub && sub.id) {
+        // تفضيل السحابي إن وُجد، أو الاحتفاظ بالمحلي الحديث
+        if (!mergedMap.has(sub.id) || sub.submittedAt > (mergedMap.get(sub.id)?.submittedAt || '')) {
+          mergedMap.set(sub.id, sub);
+        }
+      }
+    });
+    
+    const finalSubmissions = Array.from(mergedMap.values());
+    finalSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
+
+    localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(finalSubmissions));
+    callbacks.onSubmissionsChange(finalSubmissions);
   }, (err) => console.warn('Submissions listener err:', err));
 
   return () => {
@@ -375,6 +391,7 @@ export async function deleteAllAssignments(): Promise<void> {
   });
 }
 
+// دالة حفظ الاستجابة مع ضمان الإرسال السحابي الفوري من المحاولة الأولى
 export async function saveSubmission(
   submission: Omit<Submission, 'id' | 'submittedAt'>
 ): Promise<Submission> {
@@ -387,7 +404,7 @@ export async function saveSubmission(
     submittedAt: new Date().toISOString(),
     teacherGrade: submission.teacherGrade ?? null,
     teacherNotes: submission.teacherNotes || '',
-    audioBase64: '', 
+    audioBase64: submission.audioBase64 || '', // حفظ الصوت محلياً لدهاز الطالب
   };
 
   submissions.unshift(newSubmission);
@@ -417,10 +434,11 @@ export async function saveSubmission(
     cloudSubmission.tajweedReport = newSubmission.tajweedReport;
   }
 
+  // الانتظار الإلزامي لرفع البيانات للسحابة لتصل المعلم من المحاولة الأولى فوراً
   try {
     await setDoc(doc(db, 'submissions', id), cloudSubmission);
   } catch (err) {
-    console.warn('Cloud submission save err', err);
+    console.warn('Cloud submission save err:', err);
   }
 
   return newSubmission;
