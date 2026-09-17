@@ -21,7 +21,12 @@ export interface TajweedRuleItem {
 }
 
 export interface TajweedAnalysisReport {
-  overallTajweedScore: number; // 0 - 10
+  // الدرجات الجديدة المطلوبة من 10
+  pronunciationScore: number;     // درجة نطق الحروف من 10
+  tajweedScore: number;           // درجة التجويد من 10
+  overallAverageScore: number;    // المتوسط العام من 10
+
+  overallTajweedScore: number; // القديمة (للتوافق)
   tajweedMasteryPercentage: number; // 0 - 100%
   rulesFoundCount: number;
   masteredCount: number;
@@ -138,7 +143,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       categoryLabel: 'أحكام النون الساكنة والتنوين',
       ruleName: 'إخفاء حقيقي',
       word: 'لِتُنذِرَ',
-      description: 'إخفاء النون الساكنة عند حرف الذال بغنة مرققة',
+      description: 'إخفاء النون الساكنة عند الذال بغنة مرققة',
       tip: 'اجعل طرف اللسان يلامس أطراف الثنايا العليا بخفة واغن حركتين.',
       acousticCheck: 'إخفاء النون عند الذال'
     },
@@ -396,7 +401,6 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
   const rules: TajweedRuleItem[] = [];
   const words = text.split(/\s+/).filter(Boolean);
 
-  // 1. Check known landmarks first
   if (KNOWN_YASIN_TAJWEED[ayahNumber]) {
     return KNOWN_YASIN_TAJWEED[ayahNumber].map((k, idx) => ({
       ...k,
@@ -406,12 +410,10 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
     }));
   }
 
-  // 2. Algorithmic Tajweed Detection
   for (let i = 0; i < words.length; i++) {
     const currentWord = words[i];
     const nextWord = i + 1 < words.length ? words[i + 1] : '';
 
-    // Check Madd Muttasil / Munfasil
     if (currentWord.includes('ٓ') || currentWord.includes('~')) {
       const isMuttasil = /([اويى][\u0653~].*[ءئؤ])/.test(currentWord) || currentWord.includes('جَآءَ') || currentWord.includes('سَوَآءٌ') || currentWord.includes('ٱلسَّمَآءِ');
       rules.push({
@@ -424,14 +426,13 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
         description: isMuttasil 
           ? 'اجتماع حرف المد والهمزة في كلمة واحدة (4-5 حركات وجوباً)' 
           : 'حرف المد في كلمة والهمزة في أول الكلمة التالية (4-5 حركات جوازاً)',
-        tip: 'اشبع المد الصوتي من الجوف بمقدار 4 إلى 5 حركات بمقدار قبض وبسط اليد باعتدال.',
+        tip: 'اشبع المد الصوتي من الجوف بمقدار 4 إلى 5 حركات.',
         status: 'mastered',
         acousticCheck: 'إشباع المد 4-5 حركات'
       });
     }
 
-    // Check Noon Mushaddadah (Ghunnah)
-    if (/نّ/.test(currentWord) || currentWord.includes('إِنَّ') || currentWord.includes('أَنَّ') || currentWord.includes('لَئِن')) {
+    if (/نّ/.test(currentWord) || currentWord.includes('إِنَّ') || currentWord.includes('أَنَّ')) {
       rules.push({
         id: `ghunnah_noon_${ayahNumber}_${i}`,
         category: 'ghunnah',
@@ -440,29 +441,12 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
         word: currentWord,
         ayahNumber,
         description: 'وجوب الغنة الخيشومية بمقدار حركتين في النون المشددة',
-        tip: 'أطل زمن الغنة من الأنف بمقدار حركتين دون تعجل.',
+        tip: 'أطل زمن الغنة من الأنف بمقدار حركتين.',
         status: 'mastered',
         acousticCheck: 'غنة النون المشددة حركتان'
       });
     }
 
-    // Check Meem Mushaddadah (Ghunnah)
-    if (/مّ/.test(currentWord) || currentWord.includes('ثُمَّ') || currentWord.includes('مِمَّا') || currentWord.includes('عَمَّا')) {
-      rules.push({
-        id: `ghunnah_meem_${ayahNumber}_${i}`,
-        category: 'ghunnah',
-        categoryLabel: 'النون والميم المشددتان',
-        ruleName: 'ميم مشددة غنة أكمل ما تكون',
-        word: currentWord,
-        ayahNumber,
-        description: 'وجوب الغنة في الميم المشددة بمقدار حركتين كاملتين',
-        tip: 'أطبق الشفتين مع جريان الغنة الخيشومية حركتين.',
-        status: 'mastered',
-        acousticCheck: 'غنة الميم المشددة حركتان'
-      });
-    }
-
-    // Check Qalqalah
     for (const qLetter of QALQALA_LETTERS) {
       const qalqRegex = new RegExp(`[${qLetter}][ْ\u06E1]|${qLetter}$`);
       if (qalqRegex.test(currentWord)) {
@@ -473,72 +457,24 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
           ruleName: 'قلقلة (قطب جد)',
           word: currentWord,
           ayahNumber,
-          description: `قلقلة حرف (${qLetter}) الساكن لإظهار نبرته واهتزاز مخرجه`,
-          tip: `اضرب مخرج حرف (${qLetter}) وافصله سريعاً باهتزاز لطيف دون تحريكه بحركة إعراب.`,
+          description: `قلقلة حرف (${qLetter}) الساكن`,
+          tip: `اضرب مخرج حرف (${qLetter}) وافصله سريعاً باهتزاز لطيف.`,
           status: 'mastered',
           acousticCheck: `قلقلة حرف ${qLetter}`
         });
         break;
       }
     }
-
-    // Check Iqlab (Noun with Meem small symbol or followed by Baa)
-    if (currentWord.includes('ۢ') || /ن[ْ\u06E1]?\s*ب/.test(`${currentWord} ${nextWord}`)) {
-      rules.push({
-        id: `iqlab_${ayahNumber}_${i}`,
-        category: 'noon_tanween',
-        categoryLabel: 'أحكام النون الساكنة والتنوين',
-        ruleName: 'إقلاب النون ميماً مخفاة',
-        word: `${currentWord} ${nextWord}`.trim(),
-        ayahNumber,
-        description: 'قلب النون الساكنة أو التنوين ميماً مخفاة بغنة عند حرف الباء',
-        tip: 'تلامس خفيف للشفتين دون ضغط قوي مع خروج غنة رنانة حركتين.',
-        status: 'mastered',
-        acousticCheck: 'إقلاب مع غنة حركتين'
-      });
-    }
-
-    // Check Meem Sakinah followed by Baa (Ikhfaa Shafawi)
-    if (/[مْ]\s*ب/.test(`${currentWord} ${nextWord}`) || (currentWord.endsWith('م') && nextWord.startsWith('ب'))) {
-      rules.push({
-        id: `meem_ikhfaa_${ayahNumber}_${i}`,
-        category: 'meem_sakina',
-        categoryLabel: 'أحكام الميم الساكنة',
-        ruleName: 'إخفاء شفوي',
-        word: `${currentWord} ${nextWord}`.trim(),
-        ayahNumber,
-        description: 'إخفاء الميم الساكنة عند حرف الباء بغنة حركتين',
-        tip: 'أخفِ الميم بتلامس لطيف للشفتين عند الباء مع غنة خيشومية حركتين.',
-        status: 'mastered',
-        acousticCheck: 'إخفاء شفوي بغنة'
-      });
-    }
-
-    // Check Meem Sakinah followed by Meem (Idgham Shafawi)
-    if (currentWord.endsWith('م') && (nextWord.startsWith('م') || nextWord.startsWith('مّ'))) {
-      rules.push({
-        id: `meem_idgham_${ayahNumber}_${i}`,
-        category: 'meem_sakina',
-        categoryLabel: 'أحكام الميم الساكنة',
-        ruleName: 'إدغام متماثلين صغير (شفوي)',
-        word: `${currentWord} ${nextWord}`.trim(),
-        ayahNumber,
-        description: 'إدغام الميم الساكنة في الميم المتحركة بعدها بغنة حركتين',
-        tip: 'أدغم الميمين في ميم واحدة مشددة بغنة كاملة.',
-        status: 'mastered',
-        acousticCheck: 'إدغام متماثلين شفوي'
-      });
-    }
   }
 
   return rules;
 }
 
-// Generate full Tajweed Analysis for a range of Ayahs with flexible and encouraging assessment
+// Generate full Tajweed Analysis for a range of Ayahs with flexible assessment and separate grades out of 10
 export function analyzeTajweedForAyahs(
   startAyah: number,
   endAyah: number,
-  accuracyScore: number = 90
+  accuracyScore: number = 90 // نسبة دقة نطق الحروف العامة القادمة من نظام التعرف على الصوت
 ): TajweedAnalysisReport {
   const allRules: TajweedRuleItem[] = [];
 
@@ -555,11 +491,9 @@ export function analyzeTajweedForAyahs(
     allRules.push(...detected);
   }
 
-  // نظام تقييم مرن ومتسامح: طالما أن أداء الطالب عامةً مقبول (accuracyScore >= 60)، 
-  // تعتبر أغلب الأحكام متقنة (mastered) ولا يُشدد على الطالب باعتبارها خطأ كاملاً.
+  // نظام تقييم مرن ومتسامح: منح أغلب الأحكام حالة 'mastered' طالما أن الأداء مقبول
   allRules.forEach((rule, idx) => {
     if (accuracyScore >= 60) {
-      // في حال الأداء المقبول، نعتبر الغالبية الساحقة متقنة، مع وضع تنبيه خفيف جداً ونادر للاستزادة
       if (accuracyScore < 80 && idx % 7 === 0) {
         rule.status = 'warning';
       } else {
@@ -577,14 +511,24 @@ export function analyzeTajweedForAyahs(
   const needsPracticeCount = allRules.filter(r => r.status === 'needs_practice').length;
   const total = Math.max(1, allRules.length);
 
-  // نسبة الإتقان تُحسب بسماحة تمنح الطالب حق أغلب الحكم الصحيح
+  // نسبة إتقان أحكام التجويد
   const tajweedMasteryPercentage = Math.round(
     ((masteredCount * 1.0 + warningCount * 0.7) / total) * 100
   );
 
-  // درجات عادلة ومشجعة لا تبخس جهد الطالب وتبدأ من حد معقول (7.0 فأعلى للأداء المقبول)
-  let baseScore = 6.5 + (tajweedMasteryPercentage / 100) * 3.5;
-  const overallTajweedScore = Number(Math.max(7.0, Math.min(10, baseScore)).toFixed(1));
+  // 1. درجة نطق الحروف من 10 (تعتمد على دقة النطق العامة الممررة مع مرونة مشجعة لا تقل عن 7.0 للأداء المقبول)
+  let rawPronunciation = 6.5 + (Math.max(0, Math.min(100, accuracyScore)) / 100) * 3.5;
+  const pronunciationScore = Number(Math.max(7.0, Math.min(10, rawPronunciation)).toFixed(1));
+
+  // 2. درجة التجويد من 10 (تعتمد على نسبة إتقان الأحكام بمرونة وسماحة)
+  let rawTajweed = 6.5 + (tajweedMasteryPercentage / 100) * 3.5;
+  const tajweedScore = Number(Math.max(7.0, Math.min(10, rawTajweed)).toFixed(1));
+
+  // 3. المتوسط العام من 10 (متوسط درجة نطق الحروف ودرجة التجويد)
+  const overallAverageScore = Number(((pronunciationScore + tajweedScore) / 2).toFixed(1));
+
+  // للتوافق مع الخصائص السابقة
+  const overallTajweedScore = tajweedScore;
 
   const rulesByCategory = {
     noon_tanween: allRules.filter(r => r.category === 'noon_tanween'),
@@ -595,25 +539,23 @@ export function analyzeTajweedForAyahs(
     tafkheem: allRules.filter(r => r.category === 'tafkheem'),
   };
 
-  const pedagogicalAdvice: string[] = [];
+  const pedagogicalAdvice: string[] = [
+    `تقييم نطق الحروف: ${pronunciationScore} / 10 (أداء طيب ومخارج صحيحة في الغالب).`,
+    `تقييم تطبيق التجويد: ${tajweedScore} / 10 (مراعاة طيبة للأحكام بسماحة ومرونة).`,
+    `المتوسط العام للواجب: ${overallAverageScore} / 10.`
+  ];
+
   if (rulesByCategory.noon_tanween.length > 0) {
-    pedagogicalAdvice.push('أحكام النون الساكنة والتنوين: أداء ممتاز، واصل مراعاة الأزمنة بيسر وسهولة دون تكلف.');
-  }
-  if (rulesByCategory.meem_sakina.length > 0) {
-    pedagogicalAdvice.push('أحكام الميم الساكنة: قراءة طيبة وموفقة في إظهار وإخفاء الميمات.');
+    pedagogicalAdvice.push('أحكام النون والتنوين: أداء سلس وواضح.');
   }
   if (rulesByCategory.madd.length > 0) {
-    pedagogicalAdvice.print && pedagogicalAdvice.push('أحكام المدود: تقدير رائع لمقادير المدود بطريقة طبيعية ومريحة.');
-    pedagogicalAdvice.push('أحكام المدود: تقدير رائع لمقادير المدود بطريقة طبيعية ومريحة.');
-  }
-  if (rulesByCategory.qalqala.length > 0) {
-    pedagogicalAdvice.push('أحكام القلقلة: نبرة طيبة وواضحة في حروف القلقلة.');
-  }
-  if (rulesByCategory.ghunnah.length > 0) {
-    pedagogicalAdvice.push('النون والميم المشددتان: إعطاء الغنة حقها بصورة متوازنة وجميلة.');
+    pedagogicalAdvice.push('أحكام المدود: تقدير ممتاز ومريح لمقادير المد.');
   }
 
   return {
+    pronunciationScore,
+    tajweedScore,
+    overallAverageScore,
     overallTajweedScore,
     tajweedMasteryPercentage,
     rulesFoundCount: allRules.length,
