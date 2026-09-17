@@ -1,12 +1,17 @@
-{
-  "projectId": "grounded-technique-rgmzr",
-  "appId": "1:944676198315:web:5bf9874602742ff930a4ee",
-  "apiKey": "AIzaSyA2CR66DY5I3TCn_gqXvwTjjUCq2ZKZW08",
-  "authDomain": "grounded-technique-rgmzr.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-420cd5a9-10ed-4e84-97e9-7649c7b7816a",
-  "storageBucket": "grounded-technique-rgmzr.firebasestorage.app",
-  "messagingSenderId": "944676198315",
-  "measurementId": "",
-  "oAuthClientId": "944676198315-p5b1neqqt2bkgford1cf6a2g2i4rc4aj.apps.googleusercontent.com",
-  "recaptchaSiteKey": ""
-}
+import { initializeApp } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyA2CR66DY5I3TCn_gqXvwTjjUCq2ZKZW08",
+  authDomain: "grounded-technique-rgmzr.firebaseapp.com",
+  projectId: "grounded-technique-rgmzr",
+  storageBucket: "grounded-technique-rgmzr.firebasestorage.app",
+  messagingSenderId: "944676198315",
+  appId: "1:944676198315:web:5bf9874602742ff930a4ee"
+};
+
+// تهيئة التطبيق والخدمات بشكل قياسي صحيح
+export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
