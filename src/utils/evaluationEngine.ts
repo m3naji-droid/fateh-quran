@@ -106,7 +106,7 @@ export function evaluateRecitationLocally(
   const cleanedTranscription = cleanArabicText(transcribedInput);
   const rawSpokenWords = cleanedTranscription.split(/\s+/).filter(Boolean);
 
-  // تطبيق مصفاة إزالة الاستعاذة والبسملة هنا لتعديل بداية المصفوفة بدقة
+  // تطبيق مصفاة إزالة الاستعاذة والبسملة لتعديل بداية المصفوفة بدقة
   const spokenWords = cleanRecitationPrefixes(rawSpokenWords);
 
   const wordEvaluations: WordEvaluation[] = [];
@@ -140,17 +140,28 @@ export function evaluateRecitationLocally(
     };
   }
 
-  // Case 1: تطبيـق خوارزمية التتبع التسلسلي الخطي الدقيق (Strict Sequential Alignment)
+  // Case 1: تطبيق خوارزمية التتبع التسلسلي الخطي مع التعامل مع الكلمات المتروكة حتى نهاية المقطع
   if (spokenWords.length > 0) {
-    let spokenIdx = 0; // مؤشر تتبع الكلمات المنطوقة يتحرك للأمام حصراً وبترتيب صارم
+    let spokenIdx = 0; // مؤشر تتبع الكلمات المنطوقة يتحرك للأمام حصراً
 
     for (let i = 0; i < expectedQuranWords.length; i++) {
       const expected = expectedQuranWords[i];
       
+      // إذا نفدت الكلمات المنطوقة من الطالب (توقف قبل نهاية المقطع)، نعتبر بقية الكلمات مفقودة
+      if (spokenIdx >= spokenWords.length) {
+        wordEvaluations.push({
+          word: expected.voweled,
+          cleanWord: expected.normalized,
+          status: 'missing',
+          ayahNumber: expected.ayahNumber
+        });
+        continue;
+      }
+
       let bestMatchIdx = -1;
       let highestSim = 0;
 
-      // نطاق بحث زمني ضيق جداً يمنع القفز العشوائي ويضمن التتبع كلمة بكلمة
+      // نطاق بحث زمني ضيق يمنع القفز العشوائي ويضمن التتبع كلمة بكلمة
       const windowSize = 2; 
       const startSearch = spokenIdx;
       const endSearch = Math.min(spokenWords.length, spokenIdx + windowSize);
@@ -170,13 +181,13 @@ export function evaluateRecitationLocally(
       if (bestMatchIdx !== -1 && highestSim >= 0.85) {
         status = 'correct';
         recWord = spokenWords[bestMatchIdx];
-        spokenIdx = bestMatchIdx + 1; // التقدم للكلمة التالية في النطق حصراً
+        spokenIdx = bestMatchIdx + 1; // التقدم للكلمة التالية في النطق
       } else if (bestMatchIdx !== -1 && highestSim >= 0.50) {
         status = 'mispronounced';
         recWord = spokenWords[bestMatchIdx];
-        spokenIdx = bestMatchIdx + 1; // التقدم للكلمة التالية حتى لو كانت منسوبة بخطأ في النطق
+        spokenIdx = bestMatchIdx + 1; // التقدم للكلمة التالية مع رصد خطأ في النطق
       } else {
-        // إذا لم تنطق الكلمة في ترتيبها الزمني، تُعتبر مفقودة ولا يتم القفز للكلمات اللاحقة عشوائياً
+        // الكلمة لم تُنطق في مكانها الصحيح، تُعتبر مفقودة دون التقدم في مؤشر النطق
         status = 'missing';
       }
 
