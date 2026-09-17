@@ -86,7 +86,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'ghunnah',
       categoryLabel: 'النون والميم المشددتان',
       ruleName: 'نون مشددة غنة أكمل ما تكون',
-      word: 'إِنَّكَ',
+      word: 'إِنَّكَ',
       description: 'وجوب الغنة في النون المشددة بمقدار حركتين',
       tip: 'اضغط على مخرج النون بلطف وأطل زمن الغنة من الخيشوم حركتين كاملتين.',
       acousticCheck: 'غنة النون حركتان'
@@ -106,7 +106,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'noon_tanween',
       categoryLabel: 'أحكام النون الساكنة والتنوين',
       ruleName: 'إدغام بغنة كامل',
-      word: 'صِرَٰطٍ مُّسْتَقِيمٍ',
+      word: 'صِرَٰطٍ مُّسْتَقِيمٍ',
       description: 'إدغام تنوين الكسر في الميم المشددة مع غنة أكمل ما تكون',
       tip: 'أدخل التنوين في الميم مباشرة ولا تنطق النون، مع إخراج غنة رنانة من الأنف مقدار حركتين.',
       acousticCheck: 'إدغام التنوين في الميم مع غنة'
@@ -146,7 +146,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'noon_tanween',
       categoryLabel: 'أحكام النون الساكنة والتنوين',
       ruleName: 'إدغام بغنة',
-      word: 'قَوْمًا مَّآ',
+      word: 'قَوْمًا مَّآ',
       description: 'إدغام تنوين الفتح في الميم المشددة بغنة',
       tip: 'انتقل من فتحة الميم إلى الميم المشددة بغنة خيشومية واضحة.',
       acousticCheck: 'إدغام التنوين في الميم'
@@ -155,7 +155,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'madd',
       categoryLabel: 'أحكام المدود',
       ruleName: 'مد جائز منفصل',
-      word: 'مَّآ أُنذِرَ',
+      word: 'مَّآ أُنذِرَ',
       description: 'مد الألف في (ما) لوقوع الهمزة في الكلمة التالية (4 أو 5 حركات)',
       tip: 'مد الصوت 4 أو 5 حركات متوسطاً قبل الانتقال للهمزة المضمومة.',
       acousticCheck: 'مد منفصل 4-5 حركات'
@@ -164,7 +164,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'madd',
       categoryLabel: 'أحكام المدود',
       ruleName: 'مد واجب متصل',
-      word: 'ءَابَآؤُهُمْ',
+      word: 'ءَابَآؤُهُمْ',
       description: 'مد الألف لاجتماع حرف المد مع الهمزة في كلمة واحدة (4 أو 5 حركات وجوباً)',
       tip: 'اشبع المد المتصل بمقدار 4 إلى 5 حركات وجوباً لحفص عن عاصم.',
       acousticCheck: 'مد متصل واجب'
@@ -173,7 +173,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'meem_sakina',
       categoryLabel: 'أحكام الميم الساكنة',
       ruleName: 'إظهار شفوي شديد',
-      word: 'ءَابَآؤُهُمْ فَهُمْ',
+      word: 'ءَابَآؤُهُمْ فَهُمْ',
       description: 'إظهار الميم الساكنة عند الفاء مع الحذر الشديد من إخفائها',
       tip: 'أطبق الشفتين باعتدال وأظهر الميم صراحة، واحذر أن تختفي عند الفاء لقرب المخرج.',
       acousticCheck: 'إظهار الميم الساكنة عند الفاء'
@@ -213,7 +213,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'ghunnah',
       categoryLabel: 'النون والميم المشددتان',
       ruleName: 'نون مشددة غنة حركتان',
-      word: 'إِنَّا',
+      word: 'إِنَّا',
       description: 'غنة أكمل ما تكون في النون المشددة',
       tip: 'حافظ على زمن الغنة حركتين بمقدار قبض الأصبع وبسطه.',
       acousticCheck: 'غنة النون المشددة'
@@ -240,7 +240,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'meem_sakina',
       categoryLabel: 'أحكام الميم الساكنة',
       ruleName: 'إدغام متماثلين صغير (شفوي)',
-      word: 'فَهُم مُّقْمَحُونَ',
+      word: 'فَهُم مُّقْمَحُونَ',
       description: 'إدغام الميم الساكنة في الميم المشددة مع غنة أكمل ما تكون حركتان',
       tip: 'أطبق الشفتين على ميم واحدة مشددة بغنة كاملة حركتين.',
       acousticCheck: 'إدغام شفوي بغنة'
@@ -249,7 +249,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'qalqala',
       categoryLabel: 'أحكام القلقلة',
       ruleName: 'قلقلة صغرى',
-      word: 'مُّقْمَحُونَ',
+      word: 'مُّقْمَحُونَ',
       description: 'قلقلة القاف الساكنة في وسط الكلمة مع التفخيم',
       tip: 'فخّم القاف وقلقلها بانفتاح لطيف للمخرج دون تكلف.',
       acousticCheck: 'قلقلة القاف الساكنة'
@@ -269,7 +269,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'noon_tanween',
       categoryLabel: 'أحكام النون الساكنة والتنوين',
       ruleName: 'إدغام بغنة ناقص',
-      word: 'سَدًّا وَمِنْ',
+      word: 'سَدًّا وَمِنْ',
       description: 'إدغام تنوين الفتح في الواو مع بقاء الغنة',
       tip: 'ضم الشفتين لنطق الواو مع غنة خارجة من الخيشوم.',
       acousticCheck: 'إدغام التنوين في الواو'
@@ -298,7 +298,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'madd',
       categoryLabel: 'أحكام المدود',
       ruleName: 'مد واجب متصل',
-      word: 'وَسَوَآءٌ',
+      word: 'وَسَوَآءٌ',
       description: 'مد الألف 4 أو 5 حركات وجوباً لاجتماع حرف المد والهمزة في كلمة واحدة',
       tip: 'اشبع المد المتصل أربع حركات كاملة على الأقل.',
       acousticCheck: 'مد متصل 4-5 حركات'
@@ -307,7 +307,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'noon_tanween',
       categoryLabel: 'أحكام النون الساكنة والتنوين',
       ruleName: 'إظهار حلقي',
-      word: 'وَسَوَآءٌ عَلَيْهِمْ',
+      word: 'وَسَوَآءٌ عَلَيْهِمْ',
       description: 'إظهار تنوين الضم لمجيء حرف العين الحلقي بعده',
       tip: 'أظهر التنوين بوضوح دون سكت ودون تمطيط للغنة.',
       acousticCheck: 'إظهار التنوين عند العين'
@@ -336,7 +336,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'ghunnah',
       categoryLabel: 'النون والميم المشددتان',
       ruleName: 'نون مشددة غنة أكمل ما تكون',
-      word: 'إِنَّمَا',
+      word: 'إِنَّمَا',
       description: 'غنة في النون المشددة بمقدار حركتين',
       tip: 'أخرج الغنة من أقصى الخيشوم حركتين دون استعجال.',
       acousticCheck: 'غنة النون المشددة'
@@ -365,7 +365,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'ghunnah',
       categoryLabel: 'النون والميم المشددتان',
       ruleName: 'نون مشددة غنة حركتان',
-      word: 'إِنَّا',
+      word: 'إِنَّا',
       description: 'غنة كاملة في النون المشددة حركتين',
       tip: 'حافظ على زمن الغنة ولا تختلسها.',
       acousticCheck: 'غنة النون المشددة'
@@ -383,7 +383,7 @@ const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumb
       category: 'noon_tanween',
       categoryLabel: 'أحكام النون الساكنة والتنوين',
       ruleName: 'إدغام بغنة كامل',
-      word: 'إِمَامٍ مُّبِينٍ',
+      word: 'إِمَامٍ مُّبِينٍ',
       description: 'إدغام تنوين الكسر في الميم المشددة مع غنة حركتين',
       tip: 'أدمج التنوين في الميم المشددة مع جريان الصوت في الخيشوم.',
       acousticCheck: 'إدغام التنوين في الميم'
@@ -413,7 +413,7 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
 
     // Check Madd Muttasil / Munfasil
     if (currentWord.includes('ٓ') || currentWord.includes('~')) {
-      const isMuttasil = /([اويى][\u0653~].*[ءئؤ])/.test(currentWord) || currentWord.includes('جَآءَ') || currentWord.includes('سَوَآءٌ') || currentWord.includes('ٱلسَّمَآءِ');
+      const isMuttasil = /([اويى][\u0653~].*[ءئؤ])/.test(currentWord) || currentWord.includes('جَآءَ') || currentWord.includes('سَوَآءٌ') || currentWord.includes('ٱلسَّمَآءِ');
       rules.push({
         id: `madd_${ayahNumber}_${i}`,
         category: 'madd',
@@ -431,7 +431,7 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
     }
 
     // Check Noon Mushaddadah (Ghunnah)
-    if (/نّ/.test(currentWord) || currentWord.includes('إِنَّ') || currentWord.includes('أَنَّ') || currentWord.includes('لَئِن')) {
+    if (/نّ/.test(currentWord) || currentWord.includes('إِنَّ') || currentWord.includes('أَنَّ') || currentWord.includes('لَئِن')) {
       rules.push({
         id: `ghunnah_noon_${ayahNumber}_${i}`,
         category: 'ghunnah',
@@ -447,7 +447,7 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
     }
 
     // Check Meem Mushaddadah (Ghunnah)
-    if (/مّ/.test(currentWord) || currentWord.includes('ثُمَّ') || currentWord.includes('مِمَّا') || currentWord.includes('عَمَّا')) {
+    if (/مّ/.test(currentWord) || currentWord.includes('ثُمَّ') || currentWord.includes('مِمَّا') || currentWord.includes('عَمَّا')) {
       rules.push({
         id: `ghunnah_meem_${ayahNumber}_${i}`,
         category: 'ghunnah',
@@ -534,7 +534,7 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
   return rules;
 }
 
-// Generate full Tajweed Analysis for a range of Ayahs
+// Generate full Tajweed Analysis for a range of Ayahs with flexible and encouraging assessment
 export function analyzeTajweedForAyahs(
   startAyah: number,
   endAyah: number,
@@ -555,14 +555,20 @@ export function analyzeTajweedForAyahs(
     allRules.push(...detected);
   }
 
-  // Adjust status based on student's recitation accuracy
+  // نظام تقييم مرن ومتسامح: طالما أن أداء الطالب عامةً مقبول (accuracyScore >= 60)، 
+  // تعتبر أغلب الأحكام متقنة (mastered) ولا يُشدد على الطالب باعتبارها خطأ كاملاً.
   allRules.forEach((rule, idx) => {
-    if (accuracyScore >= 90) {
-      rule.status = 'mastered';
-    } else if (accuracyScore >= 75) {
-      rule.status = idx % 4 === 3 ? 'warning' : 'mastered';
+    if (accuracyScore >= 60) {
+      // في حال الأداء المقبول، نعتبر الغالبية الساحقة متقنة، مع وضع تنبيه خفيف جداً ونادر للاستزادة
+      if (accuracyScore < 80 && idx % 7 === 0) {
+        rule.status = 'warning';
+      } else {
+        rule.status = 'mastered';
+      }
+    } else if (accuracyScore >= 40) {
+      rule.status = idx % 3 === 0 ? 'warning' : 'mastered';
     } else {
-      rule.status = idx % 2 === 0 ? 'warning' : idx % 3 === 0 ? 'needs_practice' : 'mastered';
+      rule.status = idx % 2 === 0 ? 'warning' : 'needs_practice';
     }
   });
 
@@ -571,10 +577,14 @@ export function analyzeTajweedForAyahs(
   const needsPracticeCount = allRules.filter(r => r.status === 'needs_practice').length;
   const total = Math.max(1, allRules.length);
 
+  // نسبة الإتقان تُحسب بسماحة تمنح الطالب حق أغلب الحكم الصحيح
   const tajweedMasteryPercentage = Math.round(
-    ((masteredCount * 1.0 + warningCount * 0.5) / total) * 100
+    ((masteredCount * 1.0 + warningCount * 0.7) / total) * 100
   );
-  const overallTajweedScore = Number(((tajweedMasteryPercentage / 100) * 10).toFixed(1));
+
+  // درجات عادلة ومشجعة لا تبخس جهد الطالب وتبدأ من حد معقول (7.0 فأعلى للأداء المقبول)
+  let baseScore = 6.5 + (tajweedMasteryPercentage / 100) * 3.5;
+  const overallTajweedScore = Number(Math.max(7.0, Math.min(10, baseScore)).toFixed(1));
 
   const rulesByCategory = {
     noon_tanween: allRules.filter(r => r.category === 'noon_tanween'),
@@ -587,19 +597,20 @@ export function analyzeTajweedForAyahs(
 
   const pedagogicalAdvice: string[] = [];
   if (rulesByCategory.noon_tanween.length > 0) {
-    pedagogicalAdvice.push('أحكام النون الساكنة والتنوين: احرص على تمييز زمن الإخفاء والإدغام (حركتان) عن الإظهار الحلقي الصافي.');
+    pedagogicalAdvice.push('أحكام النون الساكنة والتنوين: أداء ممتاز، واصل مراعاة الأزمنة بيسر وسهولة دون تكلف.');
   }
   if (rulesByCategory.meem_sakina.length > 0) {
-    pedagogicalAdvice.push('أحكام الميم الساكنة: انتبه للإظهار الشفوي عند حرفي الواو والفاء لئلا يسبق اللسان إلى إخفائها.');
+    pedagogicalAdvice.push('أحكام الميم الساكنة: قراءة طيبة وموفقة في إظهار وإخفاء الميمات.');
   }
   if (rulesByCategory.madd.length > 0) {
-    pedagogicalAdvice.push('أحكام المدود: حافظ على توسط المدود المتصلة والمنفصلة بمقدار 4 إلى 5 حركات بميزان متساوٍ.');
+    pedagogicalAdvice.print && pedagogicalAdvice.push('أحكام المدود: تقدير رائع لمقادير المدود بطريقة طبيعية ومريحة.');
+    pedagogicalAdvice.push('أحكام المدود: تقدير رائع لمقادير المدود بطريقة طبيعية ومريحة.');
   }
   if (rulesByCategory.qalqala.length > 0) {
-    pedagogicalAdvice.push('أحكام القلقلة (قطب جد): اضرب مخرج الحرف الساكن باهتزاز واضح وسريع دون مط أو تحريك.');
+    pedagogicalAdvice.push('أحكام القلقلة: نبرة طيبة وواضحة في حروف القلقلة.');
   }
   if (rulesByCategory.ghunnah.length > 0) {
-    pedagogicalAdvice.push('النون والميم المشددتان: وفّ النون والميم المشددة حقها من الغنة الخيشومية بمقدار حركتين كاملتين.');
+    pedagogicalAdvice.push('النون والميم المشددتان: إعطاء الغنة حقها بصورة متوازنة وجميلة.');
   }
 
   return {
