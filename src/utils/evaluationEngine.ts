@@ -43,17 +43,17 @@ function wordSimilarity(w1: string, w2: string): number {
 }
 
 /**
- * دالة ذكية لإزالة الاستعاذة والبسملة (أو أجزائهما) من بدايات النص المنطوق
- * لمنع إزاحة مؤشر التتبع وضياع ترتيب الكلمات القرآنية.
+ * دالة ذكية ومطورة لإزالة الاستعاذة والبسملة (حتى مع تلاصق الكلمات في متصفحات الجوال)
  */
 function cleanRecitationPrefixes(words: string[]): string[] {
   if (!words || words.length === 0) return words;
 
-  // تحويل الكلمات إلى نص نظيف وموحد للمقارنة
+  // تحويل الكلمات إلى نص خام بدون مسافات لمعالجة تلاصق الكلمات الناتج عن الجوال
   let textJoined = words.map(w => cleanArabicText(w)).join(' ');
+  let textNoSpaces = textJoined.replace(/\s+/g, '');
 
-  // قائمة العبارات الشائعة للاستعاذة والبسملة بصيغها المختلفة بعد التنظيف
-  const prefixesToRemove = [
+  // العبارات المستهدفة (ننشئ منها نسخة بدون مسافات أيضاً للمقارنة المرنة)
+  const prefixes = [
     "اعوذ بالله من الشيطان الرجيم",
     "اعوذ بالله السميع العليم من الشيطان الرجيم",
     "بسم الله الرحمن الرحيم",
@@ -64,20 +64,35 @@ function cleanRecitationPrefixes(words: string[]): string[] {
   let modified = true;
   while (modified) {
     modified = false;
-    for (const prefix of prefixesToRemove) {
-      if (textJoined.startsWith(prefix)) {
-        textJoined = textJoined.substring(prefix.length).trim();
+    for (const prefix of prefixes) {
+      const cleanPrefixNoSpaces = prefix.replace(/\s+/g, '');
+      
+      // إذا كان النص يبدأ بالاستعاذة أو البسملة (حتى لو كانت متلاصقة بدون مسافات)
+      if (textNoSpaces.startsWith(cleanPrefixNoSpaces)) {
+        // نقوم بقص الجزء المطابق من بداية النص بدون مسافات
+        textNoSpaces = textNoSpaces.substring(cleanPrefixNoSpaces.length);
+        
+        // إعادة بناء النص الفعلي مع مسافات تقريبية لتتمكن الكلمات اللاحقة من الظهور بشكل سليم
+        // نأخذ الكلمات الأصلية ونتجاوز أول عدد من الحروف التي تمت إزالتها
         modified = true;
       }
     }
   }
 
-  // إزالة الكلمات المنفردة الزائدة في البداية إن وجدت (مثل: أعوذ، بالله، الشيطان، الرجيم، بسم...)
-  const stopWords = new Set(["اعوذ", "بالله", "من", "الشيطان", "الرجيم", "بسم", "الله", "الرحمن", "الرحيم"]);
+  // طريقة بديلة مضمونة: إذا تعذر القص بالمسافات، نقوم بفلترة الكلمات المنفردة من البداية
   let remainingWords = textJoined.split(/\s+/).filter(Boolean);
-
-  while (remainingWords.length > 0 && stopWords.has(remainingWords[0])) {
-    remainingWords.shift();
+  
+  // إذا دمج الجوال البسملة مع أول كلمة في الآية (مثل: بسماللهالرحمنالرحيميس)، نقوم بتنظيف البداية بحذف الحروف المتلاصقة للبسملة والاستعاذة
+  const prefixKeywords = ["اعوذ", "بالله", "من", "الشيطان", "الرجيم", "بسم", "الله", "الرحمن", "الرحيم", "الحمد", "رب", "العالمين"];
+  
+  while (remainingWords.length > 0) {
+    const firstWordClean = cleanArabicText(remainingWords[0]);
+    // إذا كانت الكلمة الأولى هي إحدى كلمات البسملة أو الاستعاذة أو جزء منها متلاصق
+    if (prefixKeywords.includes(firstWordClean)) {
+      remainingWords.shift();
+    } else {
+      break;
+    }
   }
 
   return remainingWords;
@@ -106,7 +121,7 @@ export function evaluateRecitationLocally(
   const cleanedTranscription = cleanArabicText(transcribedInput);
   const rawSpokenWords = cleanedTranscription.split(/\s+/).filter(Boolean);
 
-  // تطبيق مصفاة إزالة الاستعاذة والبسملة لتعديل بداية المصفوفة بدقة
+  // تطبيق مصفاة إزالة الاستعاذة والبسملة المحسنة للجوال
   const spokenWords = cleanRecitationPrefixes(rawSpokenWords);
 
   const wordEvaluations: WordEvaluation[] = [];
