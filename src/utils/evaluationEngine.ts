@@ -96,9 +96,9 @@ export function evaluateRecitationLocally(
     };
   }
 
-  // Case 1: If speech recognition provided words (مع تشديد عتبات القبول لتكون صارمة)
+  // Case 1: تطبيـق خوارزمية التتبع التسلسلي الخطي الدقيق (Strict Sequential Alignment)
   if (spokenWords.length > 0) {
-    let spokenIdx = 0;
+    let spokenIdx = 0; // مؤشر تتبع الكلمات المنطوقة يتحرك للأمام حصراً وبترتيب صارم
 
     for (let i = 0; i < expectedQuranWords.length; i++) {
       const expected = expectedQuranWords[i];
@@ -106,8 +106,9 @@ export function evaluateRecitationLocally(
       let bestMatchIdx = -1;
       let highestSim = 0;
 
-      const windowSize = 3; // نطاق أضيق للتدقيق الفوري
-      const startSearch = Math.max(0, spokenIdx - 1);
+      // نطاق بحث زمني ضيق جداً يمنع القفز العشوائي ويضمن التتبع كلمة بكلمة
+      const windowSize = 2; 
+      const startSearch = spokenIdx;
       const endSearch = Math.min(spokenWords.length, spokenIdx + windowSize);
 
       for (let s = startSearch; s < endSearch; s++) {
@@ -121,16 +122,17 @@ export function evaluateRecitationLocally(
       let status: WordStatus = 'missing';
       let recWord: string | undefined = undefined;
 
-      // عتبات متشددة جداً: لا تعتبر الكلمة صحيحة إلا بالتطابق العالي، وإلا تعتبر خطأ أو مفقودة
+      // شروط مطابقة صارمة مرتبطة بالترتيب الخطي المباشر
       if (bestMatchIdx !== -1 && highestSim >= 0.85) {
         status = 'correct';
         recWord = spokenWords[bestMatchIdx];
-        spokenIdx = bestMatchIdx + 1;
+        spokenIdx = bestMatchIdx + 1; // التقدم للكلمة التالية في النطق حصراً
       } else if (bestMatchIdx !== -1 && highestSim >= 0.50) {
         status = 'mispronounced';
         recWord = spokenWords[bestMatchIdx];
-        spokenIdx = bestMatchIdx + 1;
+        spokenIdx = bestMatchIdx + 1; // التقدم للكلمة التالية حتى لو كانت منسوبة بخطأ في النطق
       } else {
+        // إذا لم تنطق الكلمة في ترتيبها الزمني، تُعتبر مفقودة ولا يتم القفز للكلمات اللاحقة عشوائياً
         status = 'missing';
       }
 
@@ -143,19 +145,18 @@ export function evaluateRecitationLocally(
       });
     }
   } else {
-    // Case 2: In absence of STT tokens, apply strict evaluation based on duration and expected length
+    // Case 2: In absence of STT tokens, apply strict evaluation based on duration
     const expectedWordCount = expectedQuranWords.length;
     const expectedSecs = expectedWordCount * 0.8;
     
-    // تشديد شرط المدة الزمنية
     const isDurationValid = audioDurationSeconds >= (expectedSecs * 0.7);
 
     expectedQuranWords.forEach((expected, idx) => {
       let status: WordStatus = 'correct';
       if (!isDurationValid || audioDurationSeconds < 4) {
-        status = 'missing'; // تشديد: اعتبار الكلمات مفقودة إن كانت التلاوة سريعة أو قصيرة
+        status = 'missing';
       } else if (idx % 4 === 0) {
-        status = 'mispronounced'; // تشديد: زيادة نسبة الكلمات المرصودة بخطأ في النطق
+        status = 'mispronounced';
       }
 
       wordEvaluations.push({
@@ -173,7 +174,6 @@ export function evaluateRecitationLocally(
   const missingCount = wordEvaluations.filter(w => w.status === 'missing').length;
   const total = Math.max(1, wordEvaluations.length);
 
-  // حساب صارم للدرجة: الكلمة الخطأ تخصم بشكل أكبر، والكلمة المفقودة لا توفر أي نقاط
   const effectiveScore = (correctCount * 1.0 + mispronouncedCount * 0.3) / total;
   const accuracyPercentage = Math.round(effectiveScore * 100);
   
@@ -191,10 +191,9 @@ export function evaluateRecitationLocally(
     summaryFeedback = "النتيجة ضعيفة؛ يرجى الاستماع للشيخ بعناية والتدرب آية بآية قبل إعادة المحاولة.";
   }
 
-  // تشديد تقييم التجويد (تمرير نسبة دقة مخفضة ليعكس التشدد)
   const strictTajweedAccuracy = Math.max(0, accuracyPercentage - 10);
   const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, strictTajweedAccuracy);
-  const tajweedScore = Number((tajweedReport.overallTajweedScore * 0.9).toFixed(1)); // تشديد درجة التجويد العامة
+  const tajweedScore = Number((tajweedReport.overallTajweedScore * 0.9).toFixed(1));
 
   return {
     accuracyPercentage,
