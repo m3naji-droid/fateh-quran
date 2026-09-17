@@ -50,7 +50,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
     const local = getSubmissions();
     const mergedMap = new Map<string, Submission>();
     // دمج البيانات لضمان شموليتها
-    [...(submissions || []), ...local].forEach((sub) => {
+     [...(submissions || []), ...local].forEach((sub) => {
       if (sub && sub.id) {
         mergedMap.set(sub.id, sub);
       }
@@ -74,6 +74,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
     ? getVerseRangeText(currentAssignment.startAyah, currentAssignment.endAyah)
     : [];
 
+  // تعديل الدالة لتقوم بالتقييم والمعاينة فقط دون الحفظ التلقائي
   const handleRecitationCompleted = async (
     audioBase64: string,
     durationSeconds: number,
@@ -94,31 +95,10 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
         durationSeconds
       );
 
-      // حفظ التسجيل محلياً وفورياً
-      await saveSubmission({
-        studentId: student.id,
-        studentName: student.name,
-        personalNumber: student.personalNumber,
-        classId: student.classId,
-        className: classRoom.name,
-        assignmentId: currentAssignment.id,
-        assignmentTitle: currentAssignment.title,
-        audioBase64,
-        durationSeconds,
-        transcribedText: evalResult.transcribedText,
-        accuracyPercentage: evalResult.accuracyPercentage,
-        aiScore: evalResult.aiScore,
-        tajweedScore: evalResult.tajweedScore,
-        tajweedReport: evalResult.tajweedReport,
-        teacherGrade: null,
-        teacherNotes: '',
-        wordEvaluations: evalResult.wordEvaluations,
-      });
-
+      // تخزين النتيجة مؤقتاً في الـ State لعرضها في نافذة المعاينة والتقييم
       setCurrentEvaluation(evalResult);
-      setShowEvaluationModal(true);
+      setShowEvaluationModal(true); // إظهار النافذة ليراجعها الطالب ويضغط على زر الإرسال بنفسه
       
-      onSubmissionsUpdated();
     } catch (err) {
       console.error('Submission evaluation error:', err);
     } finally {
@@ -357,7 +337,6 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {/* زر حذف التسجيل للسماح بإعادة المحاولة والتعديل */}
                       <button
                         onClick={handleDeleteSubmission}
                         disabled={isDeleting}
@@ -483,6 +462,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
         <SurahYasinView />
       )}
 
+      {/* نافذة المعاينة والتقييم التي تحتوي على زر الإرسال اليدوي */}
       {currentEvaluation && (
         <EvaluationModal
           isOpen={showEvaluationModal}
@@ -497,6 +477,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
           onGoToHistory={() => setActiveTab('my-history')}
           onConfirmSend={async () => {
             if (!currentAssignment) return;
+            // يتم الحفظ والإرسال فقط عند ضغط الطالب على زر الإرسال داخل النافذة
             await saveSubmission({
               studentId: student.id,
               studentName: student.name,
