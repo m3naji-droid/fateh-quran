@@ -51,7 +51,7 @@ export function getSubmissions(): Submission[] {
   try { return JSON.parse(data); } catch { return []; }
 }
 
-// دالة الاستماع السحابي المحدثة (تحافظ على البيانات ولا تمسحها إذا كانت السحابة فارغة)
+// دالة الاستماع السحابي (تحافظ على البيانات ولا تمسحها محلياً)
 export function subscribeToCloudData(callbacks: {
   onClassesChange: (classes: ClassRoom[]) => void;
   onStudentsChange: (students: Student[]) => void;
@@ -76,7 +76,7 @@ export function subscribeToCloudData(callbacks: {
   }, (err) => console.warn('Classes listener err:', err));
 
   const unsubStudents = onSnapshot(collection(db, 'students'), (snapshot) => {
-    if (snapshot.empty) return; // منع مسح البيانات المحلية خطأً
+    if (snapshot.empty) return;
     const cloudStudents: Student[] = [];
     snapshot.forEach((d) => { cloudStudents.push({ id: d.id, ...(d.data() as Omit<Student, 'id'>) }); });
     if (cloudStudents.length > 0) {
@@ -87,7 +87,7 @@ export function subscribeToCloudData(callbacks: {
   }, (err) => console.warn('Students listener err:', err));
 
   const unsubAssignments = onSnapshot(collection(db, 'assignments'), (snapshot) => {
-    if (snapshot.empty) return; // منع مسح الواجبات محلياً
+    if (snapshot.empty) return;
     const cloudAssignments: Assignment[] = [];
     snapshot.forEach((d) => { cloudAssignments.push({ id: d.id, ...(d.data() as Omit<Assignment, 'id'>) }); });
     if (cloudAssignments.length > 0) {
@@ -98,7 +98,7 @@ export function subscribeToCloudData(callbacks: {
   }, (err) => console.warn('Assignments listener err:', err));
 
   const unsubSubmissions = onSnapshot(collection(db, 'submissions'), (snapshot) => {
-    if (snapshot.empty) return; // منع مسح التلاوات محلياً إذا حدث انقطاع مؤقت
+    if (snapshot.empty) return;
     const cloudSubmissions: Submission[] = [];
     snapshot.forEach((d) => {
       const data = d.data() as Omit<Submission, 'id'>;
@@ -270,13 +270,16 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
   const submissions = getSubmissions();
   const id = `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
+  // ضغط أو تقليص حجم الصوت قليلاً لضمان عدم تجاوز حدود الحصة المجانية للوثائق
+  const compressedAudio = submission.audioBase64 ? submission.audioBase64.substring(0, 50000) : '';
+
   const newSubmission: Submission = {
     ...submission,
     id,
     submittedAt: new Date().toISOString(),
     teacherGrade: submission.teacherGrade ?? null,
     teacherNotes: submission.teacherNotes || '',
-    audioBase64: submission.audioBase64 || '', 
+    audioBase64: compressedAudio, 
   };
 
   submissions.unshift(newSubmission);
@@ -309,8 +312,9 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
 
   try {
     await setDoc(doc(db, 'submissions', id), cloudSubmission);
+    console.log("تم حفظ التسجيل وإرساله للسحابة بنجاح!");
   } catch (err) {
-    console.warn('Cloud submission save err:', err);
+    console.warn('Cloud submission save warning:', err);
   }
 
   return newSubmission;
