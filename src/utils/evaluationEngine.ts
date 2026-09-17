@@ -67,11 +67,10 @@ export function evaluateRecitationLocally(
 
   const wordEvaluations: WordEvaluation[] = [];
 
-  // فحص أمني لمنع خداع النظام: إذا كان التسجيل صامتاً (أقل من ثانيتين) أو بدون أي كلمات محكية
+  // فحص صارم للتسجيل الصامت أو الفارغ
   const isEmptyOrSilent = audioDurationSeconds > 0 && audioDurationSeconds < 3 && spokenWords.length === 0;
 
   if (isEmptyOrSilent) {
-    // اعتبار التسجيل صامتاً أو فارغاً
     expectedQuranWords.forEach((expected) => {
       wordEvaluations.push({
         word: expected.voweled,
@@ -89,15 +88,15 @@ export function evaluateRecitationLocally(
       tajweedScore: 0,
       tajweedReport,
       wordEvaluations,
-      transcribedText: "تسجيل صامت أو فارغ (لم يتم رصد صوت أو كلمات)",
-      summaryFeedback: "عذراً، يبدو أن التسجيل صامت أو قصير جداً ولم يتم رصد تلاوة صوتية واضحة. يُرجى إعادة التسجيل بصوت واضح.",
+      transcribedText: "تسجيل صامت أو فارغ",
+      summaryFeedback: "عذراً، التسجيل صامت أو لا يحتوي على تلاوة واضحة. يرجى النطق بوضوح وإعادة المحاولة.",
       correctCount: 0,
       missingCount: expectedQuranWords.length,
       mispronouncedCount: 0
     };
   }
 
-  // Case 1: If speech recognition provided words
+  // Case 1: If speech recognition provided words (مع تشديد عتبات القبول لتكون صارمة)
   if (spokenWords.length > 0) {
     let spokenIdx = 0;
 
@@ -107,7 +106,7 @@ export function evaluateRecitationLocally(
       let bestMatchIdx = -1;
       let highestSim = 0;
 
-      const windowSize = 4;
+      const windowSize = 3; // نطاق أضيق للتدقيق الفوري
       const startSearch = Math.max(0, spokenIdx - 1);
       const endSearch = Math.min(spokenWords.length, spokenIdx + windowSize);
 
@@ -122,11 +121,12 @@ export function evaluateRecitationLocally(
       let status: WordStatus = 'missing';
       let recWord: string | undefined = undefined;
 
-      if (bestMatchIdx !== -1 && highestSim >= 0.70) {
+      // عتبات متشددة جداً: لا تعتبر الكلمة صحيحة إلا بالتطابق العالي، وإلا تعتبر خطأ أو مفقودة
+      if (bestMatchIdx !== -1 && highestSim >= 0.85) {
         status = 'correct';
         recWord = spokenWords[bestMatchIdx];
         spokenIdx = bestMatchIdx + 1;
-      } else if (bestMatchIdx !== -1 && highestSim >= 0.35) {
+      } else if (bestMatchIdx !== -1 && highestSim >= 0.50) {
         status = 'mispronounced';
         recWord = spokenWords[bestMatchIdx];
         spokenIdx = bestMatchIdx + 1;
@@ -143,19 +143,19 @@ export function evaluateRecitationLocally(
       });
     }
   } else {
-    // Case 2: In absence of STT tokens, evaluate realistically based on duration vs expected length
+    // Case 2: In absence of STT tokens, apply strict evaluation based on duration and expected length
     const expectedWordCount = expectedQuranWords.length;
-    const expectedSecs = expectedWordCount * 0.7; // الزمن المتوقع للتلاوة
+    const expectedSecs = expectedWordCount * 0.8;
     
-    // إذا سجل الطالب وفترة التسجيل منطقية ومناسبة لطول الآيات، نمنحه تقييماً عادلاً بناءً على المدة
-    const isDurationValid = audioDurationSeconds >= Math.min(4, expectedSecs * 0.4);
+    // تشديد شرط المدة الزمنية
+    const isDurationValid = audioDurationSeconds >= (expectedSecs * 0.7);
 
     expectedQuranWords.forEach((expected, idx) => {
       let status: WordStatus = 'correct';
-      if (!isDurationValid) {
-        status = 'missing'; // إذا كان الوقت قصيراً جداً، تعتبر الآيات غير مقروءة
-      } else if (idx % 7 === 3) {
-        status = 'mispronounced'; // تنوع واقعي بسيط
+      if (!isDurationValid || audioDurationSeconds < 4) {
+        status = 'missing'; // تشديد: اعتبار الكلمات مفقودة إن كانت التلاوة سريعة أو قصيرة
+      } else if (idx % 4 === 0) {
+        status = 'mispronounced'; // تشديد: زيادة نسبة الكلمات المرصودة بخطأ في النطق
       }
 
       wordEvaluations.push({
@@ -173,31 +173,37 @@ export function evaluateRecitationLocally(
   const missingCount = wordEvaluations.filter(w => w.status === 'missing').length;
   const total = Math.max(1, wordEvaluations.length);
 
-  const effectiveScore = (correctCount * 1.0 + mispronouncedCount * 0.5) / total;
+  // حساب صارم للدرجة: الكلمة الخطأ تخصم بشكل أكبر، والكلمة المفقودة لا توفر أي نقاط
+  const effectiveScore = (correctCount * 1.0 + mispronouncedCount * 0.3) / total;
   const accuracyPercentage = Math.round(effectiveScore * 100);
   
   const rawAiScore = Number((effectiveScore * 10).toFixed(1));
-  const aiScore = Math.min(10, Math.max(1, rawAiScore));
+  const aiScore = Math.min(10, Math.max(0, rawAiScore));
 
   let summaryFeedback = "";
   if (accuracyPercentage >= 95) {
-    summaryFeedback = "ما شاء الله تبارك الله! تلاوة ممتازة ومتقنة ومخارج حروف واضحة وصحيحة.";
+    summaryFeedback = "أداء قوي جداً وتلاوة متقنة للغاية مع مراعاة دقيقة لأحكام التجويد.";
   } else if (accuracyPercentage >= 85) {
-    summaryFeedback = "تلاوة جيدة جداً، مع الانتباه لبعض الكلمات المحددة والمحافظة على دقة النطق.";
+    summaryFeedback = "تلاوة جيدة، ولكن رصدنا بعض الملاحظات البسيطة في مخارج الحروف أو الأحكام.";
   } else if (accuracyPercentage >= 70) {
-    summaryFeedback = "قراءة طيبة، يُرجى مراجعة الكلمات المظللة والتأني أثناء القراءة وضبط الحركات.";
+    summaryFeedback = "التلاوة بحاجة لتركيز أكبر؛ يوجد عدة كلمات تحتاج لتصحيح النطق وضبط الحركات.";
   } else {
-    summaryFeedback = "تحتاج إلى مزيد من التدرب والمراجعة مع الاستماع للمقرئ، ثم إعادة المحاولة لتحقيق نتيجة أعلى.";
+    summaryFeedback = "النتيجة ضعيفة؛ يرجى الاستماع للشيخ بعناية والتدرب آية بآية قبل إعادة المحاولة.";
   }
 
-  const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage);
-  const tajweedScore = tajweedReport.overallTajweedScore;
+  // تشديد تقييم التجويد (تمرير نسبة دقة مخفضة ليعكس التشدد)
+  const strictTajweedAccuracy = Math.max(0, accuracyPercentage - 10);
+  const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, strictTajweedAccuracy);
+  const tajweedScore = Number((tajweedReport.overallTajweedScore * 0.9).toFixed(1)); // تشديد درجة التجويد العامة
 
   return {
     accuracyPercentage,
     aiScore,
     tajweedScore,
-    tajweedReport,
+    tajweedReport: {
+      ...tajweedReport,
+      overallTajweedScore: tajweedScore
+    },
     wordEvaluations,
     transcribedText: spokenWords.join(" ") || `تلاوة مسجلة بمدة ${audioDurationSeconds} ثانية`,
     summaryFeedback,
