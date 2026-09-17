@@ -13,7 +13,7 @@ import {
   orderBy,
   limit,
 } from 'firebase/firestore';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyA2CR66DY5I3TCn_gqXvwTjJUCq2ZKZW08",
@@ -25,14 +25,22 @@ const firebaseConfig = {
   firestoreDatabaseId: "ai-studio-420cd5a9-10ed-4e84-97e9-7649c7b7816a"
 };
 
-// Initialize Firebase SDK
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with corrected database ID
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
-// Authenticate anonymously so every client has access
+// دالة لتسجيل الدخول باستخدام مزود جوجل المفعل في المنصة
+export async function loginWithGoogle() {
+  const provider = new GoogleAuthProvider();
+  try {
+    await signInWithPopup(auth, provider);
+    console.log("تم تسجيل الدخول بنجاح عبر جوجل!");
+  } catch (err) {
+    console.error("خطأ في تسجيل الدخول بجوجل:", err);
+  }
+}
+
 let authReadyPromise: Promise<void> | null = null;
 export function ensureAuth(): Promise<void> {
   if (!authReadyPromise) {
@@ -41,12 +49,8 @@ export function ensureAuth(): Promise<void> {
         if (user) {
           resolve();
         } else {
-          signInAnonymously(auth)
-            .then(() => resolve())
-            .catch((err) => {
-              console.warn('Anonymous auth note:', err);
-              resolve();
-            });
+          // محاولة الدخول أو الاعتماد على الحالة الحالية
+          resolve();
         }
       });
     });
@@ -54,7 +58,6 @@ export function ensureAuth(): Promise<void> {
   return authReadyPromise;
 }
 
-// Auto-trigger auth
 ensureAuth();
 
 export {
