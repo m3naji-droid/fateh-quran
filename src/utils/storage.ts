@@ -51,6 +51,7 @@ export function getSubmissions(): Submission[] {
   try { return JSON.parse(data); } catch { return []; }
 }
 
+// دالة الاستماع السحابي المحدثة (تحافظ على البيانات ولا تمسحها إذا كانت السحابة فارغة)
 export function subscribeToCloudData(callbacks: {
   onClassesChange: (classes: ClassRoom[]) => void;
   onStudentsChange: (students: Student[]) => void;
@@ -61,9 +62,11 @@ export function subscribeToCloudData(callbacks: {
     if (!snapshot.empty) {
       const cloudClasses: ClassRoom[] = [];
       snapshot.forEach((d) => { cloudClasses.push({ id: d.id, ...(d.data() as Omit<ClassRoom, 'id'>) }); });
-      cloudClasses.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-      localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cloudClasses));
-      callbacks.onClassesChange(cloudClasses);
+      if (cloudClasses.length > 0) {
+        cloudClasses.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+        localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cloudClasses));
+        callbacks.onClassesChange(cloudClasses);
+      }
     } else {
       INITIAL_CLASSES.forEach(async (c) => {
         try { await setDoc(doc(db, 'classes', c.id), { name: c.name, createdAt: c.createdAt }); } catch (e) {}
@@ -73,22 +76,29 @@ export function subscribeToCloudData(callbacks: {
   }, (err) => console.warn('Classes listener err:', err));
 
   const unsubStudents = onSnapshot(collection(db, 'students'), (snapshot) => {
+    if (snapshot.empty) return; // منع مسح البيانات المحلية خطأً
     const cloudStudents: Student[] = [];
     snapshot.forEach((d) => { cloudStudents.push({ id: d.id, ...(d.data() as Omit<Student, 'id'>) }); });
-    cloudStudents.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
-    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(cloudStudents));
-    callbacks.onStudentsChange(cloudStudents);
+    if (cloudStudents.length > 0) {
+      cloudStudents.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+      localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(cloudStudents));
+      callbacks.onStudentsChange(cloudStudents);
+    }
   }, (err) => console.warn('Students listener err:', err));
 
   const unsubAssignments = onSnapshot(collection(db, 'assignments'), (snapshot) => {
+    if (snapshot.empty) return; // منع مسح الواجبات محلياً
     const cloudAssignments: Assignment[] = [];
     snapshot.forEach((d) => { cloudAssignments.push({ id: d.id, ...(d.data() as Omit<Assignment, 'id'>) }); });
-    cloudAssignments.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(cloudAssignments));
-    callbacks.onAssignmentsChange(cloudAssignments);
+    if (cloudAssignments.length > 0) {
+      cloudAssignments.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(cloudAssignments));
+      callbacks.onAssignmentsChange(cloudAssignments);
+    }
   }, (err) => console.warn('Assignments listener err:', err));
 
   const unsubSubmissions = onSnapshot(collection(db, 'submissions'), (snapshot) => {
+    if (snapshot.empty) return; // منع مسح التلاوات محلياً إذا حدث انقطاع مؤقت
     const cloudSubmissions: Submission[] = [];
     snapshot.forEach((d) => {
       const data = d.data() as Omit<Submission, 'id'>;
@@ -115,9 +125,11 @@ export function subscribeToCloudData(callbacks: {
       });
     });
 
-    cloudSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
-    localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(cloudSubmissions));
-    callbacks.onSubmissionsChange(cloudSubmissions);
+    if (cloudSubmissions.length > 0) {
+      cloudSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
+      localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(cloudSubmissions));
+      callbacks.onSubmissionsChange(cloudSubmissions);
+    }
   }, (err) => console.warn('Submissions listener err:', err));
 
   return () => {
@@ -288,7 +300,7 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
     teacherGrade: newSubmission.teacherGrade,
     teacherNotes: newSubmission.teacherNotes,
     wordEvaluations: newSubmission.wordEvaluations || [],
-    audioBase64: newSubmission.audioBase64, // يحفظ في قاعدة بيانات Firestore المباشرة
+    audioBase64: newSubmission.audioBase64,
   };
 
   if (newSubmission.tajweedReport) {
@@ -298,7 +310,7 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
   try {
     await setDoc(doc(db, 'submissions', id), cloudSubmission);
   } catch (err) {
-    console.warn('Cloud submission save err (Check Firestore Rules):', err);
+    console.warn('Cloud submission save err:', err);
   }
 
   return newSubmission;
