@@ -14,6 +14,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInAnonymously } from 'firebase/auth';
+import { getStorage } from 'firebase/storage'; // <-- إضافة استيراد التخزين السحابي
 
 const firebaseConfig = {
   apiKey: "AIzaSyA2CR66DY5I3TCn_gqXvwTjJUCq2ZKZW08",
@@ -29,6 +30,7 @@ const app = initializeApp(firebaseConfig);
 
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
+export const storage = getStorage(app); // <-- تهيئة وتصدير التخزين السحابي ليعمل مع storage.ts
 
 // دالة لتسجيل الدخول باستخدام مزود جوجل المفعل في المنصة
 export async function loginWithGoogle() {
