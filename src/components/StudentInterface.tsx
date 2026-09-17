@@ -459,6 +459,29 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
           summaryFeedback={currentEvaluation.summaryFeedback}
           audioBase64={submittedAudioBase64}
           onGoToHistory={() => setActiveTab('my-history')}
+          onConfirmSend={async () => {
+            if (!currentAssignment) return;
+            await saveSubmission({
+              studentId: student.id,
+              studentName: student.name,
+              personalNumber: student.personalNumber,
+              classId: student.classId,
+              className: classRoom.name,
+              assignmentId: currentAssignment.id,
+              assignmentTitle: currentAssignment.title,
+              audioBase64: submittedAudioBase64,
+              durationSeconds: currentEvaluation.correctCount || 5,
+              transcribedText: currentEvaluation.transcribedText,
+              accuracyPercentage: currentEvaluation.accuracyPercentage,
+              aiScore: currentEvaluation.aiScore,
+              tajweedScore: currentEvaluation.tajweedScore,
+              tajweedReport: currentEvaluation.tajweedReport,
+              teacherGrade: null,
+              teacherNotes: '',
+              wordEvaluations: currentEvaluation.wordEvaluations,
+            });
+            onSubmissionsUpdated();
+          }}
         />
       )}
     </div>
