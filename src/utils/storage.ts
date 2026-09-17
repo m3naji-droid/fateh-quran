@@ -8,6 +8,10 @@ import {
   updateDoc,
   onSnapshot,
 } from '../lib/firebase';
+// استيراد خدمات التخزين من فايربيس (تأكد من تصدير storage من ملف firebase.ts الخاص بك)
+import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
+
+const storage = getStorage();
 
 const STORAGE_KEYS = {
   CLASSES: 'quran_recite_classes_v2',
@@ -126,10 +130,6 @@ export function subscribeToCloudData(callbacks: {
 
     snapshot.forEach((d) => {
       const data = d.data() as Omit<Submission, 'id'>;
-      // دمج الصوت المخبأ محلياً إذا كان متوفراً لكي يتمكن المعلم من سماعه
-      const existingLocalList = getSubmissions();
-      const matchedLocal = existingLocalList.find((loc) => loc.id === d.id);
-
       cloudSubmissions.push({
         id: d.id,
         assignmentId: data.assignmentId || '',
@@ -149,28 +149,14 @@ export function subscribeToCloudData(callbacks: {
         teacherGrade: data.teacherGrade !== undefined ? data.teacherGrade : null,
         teacherNotes: data.teacherNotes || '',
         wordEvaluations: data.wordEvaluations || [],
-        audioBase64: data.audioBase64 || matchedLocal?.audioBase64 || '', 
+        audioBase64: data.audioBase64 || '', // هنا سيأتي رابط الملف الصوتي السحابي أو Base64 المخزن
       });
     });
 
     cloudSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
     
-    // دمج ذكي مع التخزين المحلي لضمان عدم ضياع أي استجابة
-    const existingLocal = getSubmissions();
-    const mergedMap = new Map<string, Submission>();
-    [...cloudSubmissions, ...existingLocal].forEach((sub) => {
-      if (sub && sub.id) {
-        if (!mergedMap.has(sub.id) || sub.submittedAt > (mergedMap.get(sub.id)?.submittedAt || '')) {
-          mergedMap.set(sub.id, sub);
-        }
-      }
-    });
-    
-    const finalSubmissions = Array.from(mergedMap.values());
-    finalSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
-
-    localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(finalSubmissions));
-    callbacks.onSubmissionsChange(finalSubmissions);
+    localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(cloudSubmissions));
+    callbacks.onSubmissionsChange(cloudSubmissions);
   }, (err) => console.warn('Submissions listener err:', err));
 
   return () => {
@@ -394,12 +380,25 @@ export async function deleteAllAssignments(): Promise<void> {
   });
 }
 
-// دالة حفظ الاستجابة مع ضمان الإرسال السحابي الفوري من المحاولة الأولى
+// دالة حفظ الاستجابة مع رفع الملف الصوتي لـ Firebase Storage وحفظ رابطه فقط في Firestore
 export async function saveSubmission(
   submission: Omit<Submission, 'id' | 'submittedAt'>
 ): Promise<Submission> {
   const submissions = getSubmissions();
   const id = `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+
+  let audioUrl = submission.audioBase64;
+
+  // إذا كان التسجيل بصيغة Base64، نقوم برفعه إلى Firebase Storage لتوفير المساحة وتجنب حد الـ 1MB
+  if (audioUrl && audioUrl.startsWith('data:audio')) {
+    try {
+      const storageRef = ref(storage, `recordings/${id}.wav`);
+      await uploadString(storageRef, audioUrl, 'data_url');
+      audioUrl = await getDownloadURL(storageRef);
+    } catch (uploadErr) {
+      console.warn('Error uploading audio to Storage, falling back to local/base64:', uploadErr);
+    }
+  }
 
   const newSubmission: Submission = {
     ...submission,
@@ -407,7 +406,7 @@ export async function saveSubmission(
     submittedAt: new Date().toISOString(),
     teacherGrade: submission.teacherGrade ?? null,
     teacherNotes: submission.teacherNotes || '',
-    audioBase64: submission.audioBase64 || '', 
+    audioBase64: audioUrl, 
   };
 
   submissions.unshift(newSubmission);
@@ -431,15 +430,13 @@ export async function saveSubmission(
     teacherGrade: newSubmission.teacherGrade,
     teacherNotes: newSubmission.teacherNotes,
     wordEvaluations: newSubmission.wordEvaluations || [],
-    // نقوم بتضمين جزء مقتطع أو آمن من الصوت أو حفظه للسحابة ليراه المعلم
-    audioBase64: newSubmission.audioBase64,
+    audioBase64: audioUrl, // يتم حفظ الرابط الآمن فقط في قاعدة البيانات
   };
 
   if (newSubmission.tajweedReport) {
     cloudSubmission.tajweedReport = newSubmission.tajweedReport;
   }
 
-  // الانتظار الإلزامي لرفع البيانات للسحابة لتصل المعلم من المحاولة الأولى فوراً
   try {
     await setDoc(doc(db, 'submissions', id), cloudSubmission);
   } catch (err) {
@@ -475,6 +472,9 @@ export async function deleteSubmission(submissionId: string): Promise<void> {
 
   try {
     await deleteDoc(doc(db, 'submissions', submissionId));
+    // حذف الملف الصوتي من التخزين أيضاً لتنظيف المساحة
+    const storageRef = ref(storage, `recordings/${submissionId}.wav`);
+    await deleteObject(storageRef).catch(() => {});
   } catch (err) {
     console.warn('Cloud submission delete err', err);
   }
