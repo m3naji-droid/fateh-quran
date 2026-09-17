@@ -126,6 +126,10 @@ export function subscribeToCloudData(callbacks: {
 
     snapshot.forEach((d) => {
       const data = d.data() as Omit<Submission, 'id'>;
+      // دمج الصوت المخبأ محلياً إذا كان متوفراً لكي يتمكن المعلم من سماعه
+      const existingLocalList = getSubmissions();
+      const matchedLocal = existingLocalList.find((loc) => loc.id === d.id);
+
       cloudSubmissions.push({
         id: d.id,
         assignmentId: data.assignmentId || '',
@@ -145,18 +149,17 @@ export function subscribeToCloudData(callbacks: {
         teacherGrade: data.teacherGrade !== undefined ? data.teacherGrade : null,
         teacherNotes: data.teacherNotes || '',
         wordEvaluations: data.wordEvaluations || [],
-        audioBase64: '', 
+        audioBase64: data.audioBase64 || matchedLocal?.audioBase64 || '', 
       });
     });
 
     cloudSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
     
-    // دمج ذكي مع التخزين المحلي لضمان عدم ضياع التسجيلات الفورية
+    // دمج ذكي مع التخزين المحلي لضمان عدم ضياع أي استجابة
     const existingLocal = getSubmissions();
     const mergedMap = new Map<string, Submission>();
     [...cloudSubmissions, ...existingLocal].forEach((sub) => {
       if (sub && sub.id) {
-        // تفضيل السحابي إن وُجد، أو الاحتفاظ بالمحلي الحديث
         if (!mergedMap.has(sub.id) || sub.submittedAt > (mergedMap.get(sub.id)?.submittedAt || '')) {
           mergedMap.set(sub.id, sub);
         }
@@ -404,7 +407,7 @@ export async function saveSubmission(
     submittedAt: new Date().toISOString(),
     teacherGrade: submission.teacherGrade ?? null,
     teacherNotes: submission.teacherNotes || '',
-    audioBase64: submission.audioBase64 || '', // حفظ الصوت محلياً لدهاز الطالب
+    audioBase64: submission.audioBase64 || '', 
   };
 
   submissions.unshift(newSubmission);
@@ -428,6 +431,8 @@ export async function saveSubmission(
     teacherGrade: newSubmission.teacherGrade,
     teacherNotes: newSubmission.teacherNotes,
     wordEvaluations: newSubmission.wordEvaluations || [],
+    // نقوم بتضمين جزء مقتطع أو آمن من الصوت أو حفظه للسحابة ليراه المعلم
+    audioBase64: newSubmission.audioBase64,
   };
 
   if (newSubmission.tajweedReport) {
