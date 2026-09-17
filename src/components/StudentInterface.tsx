@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BookOpen, Sparkles, Award, ArrowRight, CheckCircle2, History, Info, Volume2, Headphones, Mic } from 'lucide-react';
+import { BookOpen, Sparkles, Award, ArrowRight, CheckCircle2, History, Info, Volume2, Headphones, Mic, Trash2 } from 'lucide-react';
 import { Assignment, ClassRoom, Student, Submission } from '../types';
 import { getVerseRangeText } from '../data/surahYasin';
 import { AudioRecorder } from './AudioRecorder';
@@ -39,6 +39,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
   const [currentEvaluation, setCurrentEvaluation] = useState<EvaluationResult | null>(null);
   const [submittedAudioBase64, setSubmittedAudioBase64] = useState<string>('');
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter assignments for student's class or assignments for all classes ('all')
   const classAssignments = assignments.filter((a) => a.classId === student.classId || a.classId === 'all');
@@ -60,7 +61,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
   // استخراج تلاوات الطالب الحالي فقط
   const mySubmissions = allCurrentSubmissions.filter((s) => s.studentId === student.id);
   
-  // البحث عن وجود تسليم للواجب الحالي بطريقة مطابقة مرنة (بالـ ID أو رقم الآيات) لضمان عدم اختفائه أبداً
+  // البحث عن وجود تسليم للواجب الحالي بطريقة مطابقة مرنة (بالـ ID أو رقم الآيات)
   const existingSubmission = currentAssignment 
     ? mySubmissions.find((s) => 
         s.assignmentId === currentAssignment.id || 
@@ -93,7 +94,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
         durationSeconds
       );
 
-      // حفظ التسجيل محلياً وفورياً في التخزين والسحابة
+      // حفظ التسجيل محلياً وفورياً
       await saveSubmission({
         studentId: student.id,
         studentName: student.name,
@@ -117,12 +118,34 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
       setCurrentEvaluation(evalResult);
       setShowEvaluationModal(true);
       
-      // إبلاغ المكون الأب App لتحديث الحالة وإرسالها لمعلم الصف فوراً
       onSubmissionsUpdated();
     } catch (err) {
       console.error('Submission evaluation error:', err);
     } finally {
       setIsEvaluating(false);
+    }
+  };
+
+  // دالة حذف التسجيل الحالي للسماح للطالب بإعادة التسجيل
+  const handleDeleteSubmission = async () => {
+    if (!existingSubmission) return;
+    if (!window.confirm("هل أنت متأكد من رغبتك في حذف هذا التسجيل وإعادة التلاوة من جديد؟")) return;
+
+    setIsDeleting(true);
+    try {
+      // حذف التسجيل من التخزين المحلي
+      const localSubs = getSubmissions();
+      const updatedLocal = localSubs.filter((s) => s.id !== existingSubmission.id);
+      localStorage.setItem('quran_submissions', JSON.stringify(updatedLocal));
+
+      // تحديث الواجهة
+      onSubmissionsUpdated();
+      setCurrentEvaluation(null);
+      setSubmittedAudioBase64('');
+    } catch (err) {
+      console.error('Failed to delete submission:', err);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -325,7 +348,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                       <CheckCircle2 className="w-6 h-6 text-emerald-600" />
                       <div>
                         <h3 className="font-bold text-sm text-stone-900">
-                          تم إرسال تلاوة هذا الواجب بنجاح
+                          تم إرسال واعتماد تلاوة هذا الواجب بنجاح
                         </h3>
                         <p className="text-xs text-stone-500">
                           بتاريخ {new Date(existingSubmission.submittedAt || Date.now()).toLocaleDateString('ar-SA')} • المدة: {existingSubmission.durationSeconds} ثانية
@@ -333,28 +356,41 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setCurrentEvaluation({
-                          accuracyPercentage: existingSubmission.accuracyPercentage,
-                          aiScore: existingSubmission.aiScore,
-                          tajweedScore: existingSubmission.tajweedScore ?? existingSubmission.aiScore,
-                          tajweedReport: existingSubmission.tajweedReport,
-                          wordEvaluations: existingSubmission.wordEvaluations,
-                          transcribedText: existingSubmission.transcribedText,
-                          summaryFeedback: existingSubmission.teacherNotes || 'تلاوة محفوظة',
-                          correctCount: 0,
-                          missingCount: 0,
-                          mispronouncedCount: 0,
-                        });
-                        setSubmittedAudioBase64(existingSubmission.audioBase64);
-                        setShowEvaluationModal(true);
-                      }}
-                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                      <span>عرض تفاصيل تقييم التلاوة والتجويد</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {/* زر حذف التسجيل للسماح بإعادة المحاولة والتعديل */}
+                      <button
+                        onClick={handleDeleteSubmission}
+                        disabled={isDeleting}
+                        className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        title="حذف هذا التسجيل لإعادة المحاولة"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>إعادة التسجيل والتعديل</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setCurrentEvaluation({
+                            accuracyPercentage: existingSubmission.accuracyPercentage,
+                            aiScore: existingSubmission.aiScore,
+                            tajweedScore: existingSubmission.tajweedScore ?? existingSubmission.aiScore,
+                            tajweedReport: existingSubmission.tajweedReport,
+                            wordEvaluations: existingSubmission.wordEvaluations,
+                            transcribedText: existingSubmission.transcribedText,
+                            summaryFeedback: existingSubmission.teacherNotes || 'تلاوة محفوظة',
+                            correctCount: 0,
+                            missingCount: 0,
+                            mispronouncedCount: 0,
+                          });
+                          setSubmittedAudioBase64(existingSubmission.audioBase64);
+                          setShowEvaluationModal(true);
+                        }}
+                        className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                        <span>عرض تفاصيل التقييم</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
