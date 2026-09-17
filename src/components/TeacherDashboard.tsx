@@ -726,10 +726,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         </div>
       )}
 
-      {/* باقي الأقسام تبق كما هي للإدارة */}
+      {/* SECTION 2: CLASSES & STUDENTS MANAGEMENT */}
       {activeSection === 'classes' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: Forms */}
           <div className="lg:col-span-5 space-y-6">
+            {/* Create Class Card */}
             <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-xs">
               <div className="flex items-center gap-2 mb-4">
                 <span className="p-2 bg-emerald-50 text-emerald-800 rounded-xl">
@@ -737,6 +739,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 </span>
                 <h3 className="font-bold text-sm text-stone-900">إنشاء صف دراسي جديد</h3>
               </div>
+
               <form onSubmit={handleCreateClass} className="space-y-3">
                 <div>
                   <label className="text-xs font-semibold text-stone-700 block mb-1">
@@ -751,13 +754,478 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                     className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-700 focus:outline-none"
                   />
                 </div>
+
                 <button
                   type="submit"
-                  className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                  className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
                 >
                   إضافة الصف
                 </button>
               </form>
+            </div>
+
+            {/* Create Single Student Card */}
+            <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-xs">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="p-2 bg-teal-50 text-teal-800 rounded-xl">
+                  <GraduationCap className="w-4 h-4" />
+                </span>
+                <h3 className="font-bold text-sm text-stone-900">إضافة طالب فردي</h3>
+              </div>
+
+              <form onSubmit={handleCreateStudent} className="space-y-3">
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1">
+                    اختر الصف الدراسي:
+                  </label>
+                  <select
+                    value={newStudentClassId}
+                    onChange={(e) => setNewStudentClassId(e.target.value)}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                  >
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1">
+                    اسم الطالب الثلاثي:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="مثال: محمد أحمد عبدالله"
+                    value={newStudentName}
+                    onChange={(e) => setNewStudentName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1">
+                    الرقم الشخصي / المعرف المدرسي:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="مثال: 20261050"
+                    value={newStudentPersonalId}
+                    onChange={(e) => setNewStudentPersonalId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  حفظ وتسجيل الطالب
+                </button>
+              </form>
+            </div>
+
+            {/* Bulk Import Card */}
+            <div className="bg-white p-6 rounded-3xl border border-emerald-200 shadow-xs relative overflow-hidden">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span className="p-2 bg-amber-50 text-amber-800 rounded-xl border border-amber-200">
+                    <Upload className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h3 className="font-bold text-sm text-stone-900">رفع جماعي للطلاب (Bulk Import)</h3>
+                    <p className="text-[11px] text-stone-500">إضافة جميع طلاب الصف بنقرة واحدة عبر Excel أو CSV</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-2">
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1">
+                    اختر الصف المراد إضافة الطلاب إليه:
+                  </label>
+                  <select
+                    value={bulkClassId}
+                    onChange={(e) => setBulkClassId(e.target.value)}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                  >
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="border-2 border-dashed border-emerald-300 bg-emerald-50/40 rounded-2xl p-4 text-center hover:bg-emerald-50 transition-colors">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept=".xlsx, .xls, .csv"
+                    className="hidden"
+                    id="excel-file-input"
+                  />
+                  <label
+                    htmlFor="excel-file-input"
+                    className="cursor-pointer flex flex-col items-center gap-2"
+                  >
+                    <FileSpreadsheet className="w-8 h-8 text-emerald-700" />
+                    <span className="text-xs font-bold text-emerald-900">
+                      {isUploading ? 'جاري معالجة الملف...' : 'اضغط لاختيار ملف Excel أو CSV'}
+                    </span>
+                    <span className="text-[10px] text-stone-500">
+                      يجب أن يحتوي الملف على عمودي (اسم الطالب) و(الرقم الشخصي)
+                    </span>
+                  </label>
+                </div>
+
+                {bulkUploadMsg && (
+                  <div
+                    className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                      bulkUploadMsg.type === 'success'
+                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                        : 'bg-red-50 text-red-700 border border-red-200'
+                    }`}
+                  >
+                    {bulkUploadMsg.type === 'success' ? (
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                    )}
+                    <span>{bulkUploadMsg.text}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    onClick={downloadSampleExcelTemplate}
+                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 underline"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>تحميل نموذج Excel تجريبي</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Classes & Roster list */}
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-xs">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-bold text-sm text-stone-900">الصفوف الدراسية الحالية ({classes.length})</h3>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {classes.map((cls) => {
+                  const count = students.filter((s) => s.classId === cls.id).length;
+                  const isEditing = editingClassId === cls.id;
+
+                  return (
+                    <div
+                      key={cls.id}
+                      className="p-4 rounded-2xl bg-stone-50 border border-stone-200 flex flex-col justify-between gap-3"
+                    >
+                      <div className="flex items-center justify-between">
+                        {isEditing ? (
+                          <div className="flex items-center gap-1.5 w-full">
+                            <input
+                              type="text"
+                              value={editingClassName}
+                              onChange={(e) => setEditingClassName(e.target.value)}
+                              className="text-xs px-2.5 py-1 bg-white border border-stone-300 rounded-lg w-full font-bold focus:outline-none"
+                            />
+                            <button
+                              onClick={() => handleSaveClassEdit(cls.id)}
+                              className="p-1.5 bg-emerald-700 text-white rounded-lg"
+                              title="حفظ"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setEditingClassId(null)}
+                              className="p-1.5 bg-stone-200 text-stone-700 rounded-lg"
+                              title="إلغاء"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div>
+                              <h4 className="font-bold text-sm text-stone-900">{cls.name}</h4>
+                              <span className="text-[11px] text-stone-500 font-mono">
+                                عدد الطلاب: {count} طالب
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleOpenEditClass(cls)}
+                                className="p-1.5 text-stone-600 hover:text-emerald-800 hover:bg-stone-200 rounded-lg transition-colors"
+                                title="تعديل اسم الصف"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClassWithConfirm(cls)}
+                                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-100 rounded-lg transition-colors"
+                                title="حذف الصف"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Students Roster Management Table */}
+            <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-4 border-b border-stone-100">
+                <div>
+                  <h3 className="font-bold text-sm text-stone-900">سجل الطلاب المسجلين ({students.length})</h3>
+                  <p className="text-xs text-stone-500">إدارة ومتابعة أرقام المعرفات لجميع الطلاب</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <select
+                    value={rosterClassFilter}
+                    onChange={(e) => setRosterClassFilter(e.target.value)}
+                    className="text-xs bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 font-medium"
+                  >
+                    <option value="all">كل الصفوف</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={handleExportStudentsRoster}
+                    className="px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                    title="تصدير كشف الطلاب"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>تصدير الكشف</span>
+                  </button>
+                </div>
+              </div>
+
+              {filteredStudentsRoster.length === 0 ? (
+                <div className="text-center py-8 text-stone-400 text-xs">
+                  لا يوجد طلاب مسجلين مطابقين للبحث.
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-72">
+                  <table className="w-full text-right border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-stone-50 border-b border-stone-200 text-stone-600 font-bold sticky top-0">
+                        <th className="py-2.5 px-3">اسم الطالب</th>
+                        <th className="py-2.5 px-3">الرقم الشخصي</th>
+                        <th className="py-2.5 px-3">الصف الدراسي</th>
+                        <th className="py-2.5 px-3 text-center">الإجراءات</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {filteredStudentsRoster.map((std) => {
+                        const stdClass = classes.find((c) => c.id === std.classId)?.name || 'غير محدد';
+                        return (
+                          <tr key={std.id} className="hover:bg-stone-50">
+                            <td className="py-2.5 px-3 font-bold text-stone-900">{std.name}</td>
+                            <td className="py-2.5 px-3 font-mono text-stone-600">#{std.personalNumber}</td>
+                            <td className="py-2.5 px-3 text-emerald-800 font-semibold">{stdClass}</td>
+                            <td className="py-2.5 px-3 text-center">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => handleDeleteStudentWithConfirm(std)}
+                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                                  title="حذف الطالب"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 3: ASSIGNMENTS MANAGEMENT */}
+      {activeSection === 'assignments' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-5 space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-xs">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="p-2 bg-amber-50 text-amber-800 rounded-xl">
+                  <BookOpen className="w-4 h-4" />
+                </span>
+                <h3 className="font-bold text-sm text-stone-900">إسناد واجب جديد لسورة يس</h3>
+              </div>
+
+              <form onSubmit={handleCreateAssignment} className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1">
+                    عنوان الواجب الأسبوعي:
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={asgTitle}
+                    onChange={(e) => setAsgTitle(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1">
+                    استهداف الصف الدراسي:
+                  </label>
+                  <select
+                    value={asgClassId}
+                    onChange={(e) => setAsgClassId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                  >
+                    <option value="all">جميع الفرق والصفوف الدراسية</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-stone-700 block mb-1">
+                      من الآية رقم:
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="83"
+                      value={asgStartAyah}
+                      onChange={(e) => setAsgStartAyah(parseInt(e.target.value) || 1)}
+                      className="w-full px-3.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-stone-700 block mb-1">
+                      إلى الآية رقم:
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="83"
+                      value={asgEndAyah}
+                      onChange={(e) => setAsgEndAyah(parseInt(e.target.value) || 12)}
+                      className="w-full px-3.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1">
+                    توجيهات أو ملاحظات للمعلم:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={asgInstructions}
+                    onChange={(e) => setAsgInstructions(e.target.value)}
+                    className="w-full px-3.5 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                  />
+                </div>
+
+                {asgSuccessMsg && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>{asgSuccessMsg}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  إسناد الواجب ونشره للطلاب
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <div className="lg:col-span-7 space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-xs">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-stone-100">
+                <h3 className="font-bold text-sm text-stone-900">الواجبات المسندة السابقة ({assignments.length})</h3>
+                {assignments.length > 0 && (
+                  <button
+                    onClick={handleDeleteAllAssignments}
+                    className="text-xs text-red-600 hover:text-red-700 font-bold flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>حذف كافة الواجبات</span>
+                  </button>
+                )}
+              </div>
+
+              {assignments.length === 0 ? (
+                <div className="text-center py-10 text-stone-400 text-xs">
+                  لا توجد واجبات مسندة حالياً. استخدم النموذج لإضافة واجب جديد.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {assignments.map((asg) => {
+                    const targetClass = asg.classId === 'all'
+                      ? 'جميع الصفوف'
+                      : classes.find((c) => c.id === asg.classId)?.name || 'صف مخصص';
+
+                    return (
+                      <div
+                        key={asg.id}
+                        className="p-4 rounded-2xl bg-stone-50 border border-stone-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                      >
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-bold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-md">
+                              {targetClass}
+                            </span>
+                            <span className="text-[10px] text-stone-500 font-mono">
+                              الآيات: ({asg.startAyah} - {asg.endAyah})
+                            </span>
+                          </div>
+                          <h4 className="font-bold text-sm text-stone-900">{asg.title}</h4>
+                          {asg.instructions && (
+                            <p className="text-xs text-stone-600 mt-0.5">{asg.instructions}</p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            onClick={() => handleDeleteAssignmentWithConfirm(asg)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                            title="حذف الواجب"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
