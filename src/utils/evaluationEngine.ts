@@ -31,64 +31,62 @@ function levenshteinDistance(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
+/**
+ * دالة تطبيع وتحسين متطابقة مع نصوص الهواتف لمعالجة فروق الحروف (مثل الياء والبرتقالي وغيرها)
+ */
+function normalizeForMobile(text: string): string {
+  if (!text) return '';
+  return cleanArabicText(text)
+    .replace(/[أإآا]/g, 'ا') // توحيد الألفات
+    .replace(/[ىي]/g, 'ي')   // توحيد الياء والألف المقصورة
+    .replace(/ة/g, 'ه')      // توحيد التاء المربوطة والهاء
+    .replace(/[\u064b-\u0652]/g, ''); // إزالة أي تشكيل متبقي
+}
+
 function wordSimilarity(w1: string, w2: string): number {
-  const s1 = cleanArabicText(w1);
-  const s2 = cleanArabicText(w2);
+  const s1 = normalizeForMobile(w1);
+  const s2 = normalizeForMobile(w2);
   if (s1 === s2) return 1;
   if (!s1 || !s2) return 0;
   
+  // مطابقة جزئية ذكية إذا كانت إحدى الكلمات جزءاً من الأخرى (تفيد أخطاء الجوال الطفيفة)
+  if (s1.includes(s2) || s2.includes(s1)) {
+    return 0.85;
+  }
+
   const dist = levenshteinDistance(s1, s2);
   const maxLen = Math.max(s1.length, s2.length);
   return Math.max(0, 1 - dist / maxLen);
 }
 
 /**
- * دالة ذكية ومطورة لإزالة الاستعاذة والبسملة (حتى مع تلاصق الكلمات في متصفحات الجوال)
+ * دالة ذكية لإزالة الاستعاذة والبسملة وتليين البداية لمعالجة تلاصق الكلمات في الجوال
  */
 function cleanRecitationPrefixes(words: string[]): string[] {
   if (!words || words.length === 0) return words;
 
-  // تحويل الكلمات إلى نص خام بدون مسافات لمعالجة تلاصق الكلمات الناتج عن الجوال
-  let textJoined = words.map(w => cleanArabicText(w)).join(' ');
-  let textNoSpaces = textJoined.replace(/\s+/g, '');
+  let remainingWords = words.map(w => cleanArabicText(w)).filter(Boolean);
+  
+  // كلمات الاستعاذة والبسملة الشائعة التي قد يرسلها الجوال متفرقة أو متلاصقة
+  const prefixKeywords = new Set([
+    "اعوذ", "بالله", "من", "الشيطان", "الرجيم", 
+    "بسم", "الله", "الرحمن", "الرحيم", 
+    "الحمد", "رب", "العالمين", "السميع", "العليم"
+  ]);
 
-  // العبارات المستهدفة (ننشئ منها نسخة بدون مسافات أيضاً للمقارنة المرنة)
-  const prefixes = [
-    "اعوذ بالله من الشيطان الرجيم",
-    "اعوذ بالله السميع العليم من الشيطان الرجيم",
-    "بسم الله الرحمن الرحيم",
-    "بسم الله",
-    "الحمد لله رب العالمين"
-  ];
+  // إزالة الكلمات الزائدة من البداية طالما أنها تنتمي للبسملة أو الاستعاذة
+  while (remainingWords.length > 0) {
+    const currentWordNormalized = normalizeForMobile(remainingWords[0]);
+    let isPrefix = false;
 
-  let modified = true;
-  while (modified) {
-    modified = false;
-    for (const prefix of prefixes) {
-      const cleanPrefixNoSpaces = prefix.replace(/\s+/g, '');
-      
-      // إذا كان النص يبدأ بالاستعاذة أو البسملة (حتى لو كانت متلاصقة بدون مسافات)
-      if (textNoSpaces.startsWith(cleanPrefixNoSpaces)) {
-        // نقوم بقص الجزء المطابق من بداية النص بدون مسافات
-        textNoSpaces = textNoSpaces.substring(cleanPrefixNoSpaces.length);
-        
-        // إعادة بناء النص الفعلي مع مسافات تقريبية لتتمكن الكلمات اللاحقة من الظهور بشكل سليم
-        // نأخذ الكلمات الأصلية ونتجاوز أول عدد من الحروف التي تمت إزالتها
-        modified = true;
+    for (const kw of prefixKeywords) {
+      if (currentWordNormalized === normalizeForMobile(kw) || currentWordNormalized.includes(normalizeForMobile(kw))) {
+        isPrefix = true;
+        break;
       }
     }
-  }
 
-  // طريقة بديلة مضمونة: إذا تعذر القص بالمسافات، نقوم بفلترة الكلمات المنفردة من البداية
-  let remainingWords = textJoined.split(/\s+/).filter(Boolean);
-  
-  // إذا دمج الجوال البسملة مع أول كلمة في الآية (مثل: بسماللهالرحمنالرحيميس)، نقوم بتنظيف البداية بحذف الحروف المتلاصقة للبسملة والاستعاذة
-  const prefixKeywords = ["اعوذ", "بالله", "من", "الشيطان", "الرجيم", "بسم", "الله", "الرحمن", "الرحيم", "الحمد", "رب", "العالمين"];
-  
-  while (remainingWords.length > 0) {
-    const firstWordClean = cleanArabicText(remainingWords[0]);
-    // إذا كانت الكلمة الأولى هي إحدى كلمات البسملة أو الاستعاذة أو جزء منها متلاصق
-    if (prefixKeywords.includes(firstWordClean)) {
+    if (isPrefix) {
       remainingWords.shift();
     } else {
       break;
@@ -100,8 +98,8 @@ function cleanRecitationPrefixes(words: string[]): string[] {
 
 export interface EvaluationResult {
   accuracyPercentage: number;
-  aiScore: number; // 0 - 10
-  tajweedScore: number; // 0 - 10
+  aiScore: number;
+  tajweedScore: number;
   tajweedReport: TajweedAnalysisReport;
   wordEvaluations: WordEvaluation[];
   transcribedText: string;
@@ -118,15 +116,13 @@ export function evaluateRecitationLocally(
   audioDurationSeconds: number = 0
 ): EvaluationResult {
   const expectedQuranWords: QuranicWord[] = getVerseWords(startAyah, endAyah);
-  const cleanedTranscription = cleanArabicText(transcribedInput);
-  const rawSpokenWords = cleanedTranscription.split(/\s+/).filter(Boolean);
+  const rawSpokenWords = transcribedInput.split(/\s+/).filter(Boolean);
 
-  // تطبيق مصفاة إزالة الاستعاذة والبسملة المحسنة للجوال
+  // تطبيق مصفاة التنظيف المحسنة للجوال
   const spokenWords = cleanRecitationPrefixes(rawSpokenWords);
 
   const wordEvaluations: WordEvaluation[] = [];
 
-  // فحص صارم للتسجيل الصامت أو الفارغ
   const isEmptyOrSilent = audioDurationSeconds > 0 && audioDurationSeconds < 3 && spokenWords.length === 0;
 
   if (isEmptyOrSilent) {
@@ -155,14 +151,13 @@ export function evaluateRecitationLocally(
     };
   }
 
-  // Case 1: تطبيق خوارزمية التتبع التسلسلي الخطي مع التعامل مع الكلمات المتروكة حتى نهاية المقطع
+  // التتبع الخطي المتسسامح مع مخرجات الجوال
   if (spokenWords.length > 0) {
-    let spokenIdx = 0; // مؤشر تتبع الكلمات المنطوقة يتحرك للأمام حصراً
+    let spokenIdx = 0;
 
     for (let i = 0; i < expectedQuranWords.length; i++) {
       const expected = expectedQuranWords[i];
       
-      // إذا نفدت الكلمات المنطوقة من الطالب (توقف قبل نهاية المقطع)، نعتبر بقية الكلمات مفقودة
       if (spokenIdx >= spokenWords.length) {
         wordEvaluations.push({
           word: expected.voweled,
@@ -176,8 +171,8 @@ export function evaluateRecitationLocally(
       let bestMatchIdx = -1;
       let highestSim = 0;
 
-      // نطاق بحث زمني ضيق يمنع القفز العشوائي ويضمن التتبع كلمة بكلمة
-      const windowSize = 2; 
+      // توسيع نطاق البحث على الجوال قليلاً (windowSize = 3) لتعويض أي تقطيع في كلمات STT
+      const windowSize = 3; 
       const startSearch = spokenIdx;
       const endSearch = Math.min(spokenWords.length, spokenIdx + windowSize);
 
@@ -192,17 +187,16 @@ export function evaluateRecitationLocally(
       let status: WordStatus = 'missing';
       let recWord: string | undefined = undefined;
 
-      // شروط مطابقة صارمة مرتبطة بالترتيب الخطي المباشر
-      if (bestMatchIdx !== -1 && highestSim >= 0.85) {
+      // تخفيض عتبة القبول قليلاً (0.70 بدلاً من 0.85) لتناسب اختلاف نطق وهواتف المستخدمين
+      if (bestMatchIdx !== -1 && highestSim >= 0.70) {
         status = 'correct';
         recWord = spokenWords[bestMatchIdx];
-        spokenIdx = bestMatchIdx + 1; // التقدم للكلمة التالية في النطق
-      } else if (bestMatchIdx !== -1 && highestSim >= 0.50) {
+        spokenIdx = bestMatchIdx + 1;
+      } else if (bestMatchIdx !== -1 && highestSim >= 0.40) {
         status = 'mispronounced';
         recWord = spokenWords[bestMatchIdx];
-        spokenIdx = bestMatchIdx + 1; // التقدم للكلمة التالية مع رصد خطأ في النطق
+        spokenIdx = bestMatchIdx + 1;
       } else {
-        // الكلمة لم تُنطق في مكانها الصحيح، تُعتبر مفقودة دون التقدم في مؤشر النطق
         status = 'missing';
       }
 
@@ -215,10 +209,8 @@ export function evaluateRecitationLocally(
       });
     }
   } else {
-    // Case 2: In absence of STT tokens, apply strict evaluation based on duration
     const expectedWordCount = expectedQuranWords.length;
     const expectedSecs = expectedWordCount * 0.8;
-    
     const isDurationValid = audioDurationSeconds >= (expectedSecs * 0.7);
 
     expectedQuranWords.forEach((expected, idx) => {
