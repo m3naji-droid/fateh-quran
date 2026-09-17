@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, CheckCircle2, AlertTriangle, XCircle, Award, Sparkles, Volume2, ArrowRight, Send } from 'lucide-react';
+import { X, CheckCircle2, Volume2, ArrowRight, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { WordEvaluation } from '../types';
 import { AudioPlayer } from './AudioPlayer';
@@ -17,6 +17,7 @@ interface EvaluationModalProps {
   summaryFeedback: string;
   audioBase64?: string;
   onGoToHistory?: () => void;
+  onConfirmSend: () => Promise<void>; // دالة الحفظ والإرسال الفعلية
 }
 
 export const EvaluationModal: React.FC<EvaluationModalProps> = ({
@@ -30,12 +31,15 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   summaryFeedback,
   audioBase64,
   onGoToHistory,
+  onConfirmSend,
 }) => {
+  const [isSending, setIsSending] = useState(false);
   const [isSentConfirmed, setIsSentConfirmed] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setIsSentConfirmed(false); // إعادة تعيين حالة التأكيد عند فتح النافذة
+      setIsSentConfirmed(false);
+      setIsSending(false);
       if (aiScore >= 8) {
         try {
           confetti({
@@ -55,19 +59,26 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const mispronouncedWords = wordEvaluations.filter(w => w.status === 'mispronounced').length;
   const missingWords = wordEvaluations.filter(w => w.status === 'missing').length;
 
-  const handleConfirmAndSend = () => {
-    setIsSentConfirmed(true);
-    // إغلاق النافذة بعد تأكيد الإرسال بلحظات قصيرة ليطمئن الطالب
-    setTimeout(() => {
-      onClose();
-      if (onGoToHistory) onGoToHistory();
-    }, 1200);
+  const handleConfirmAndSend = async () => {
+    setIsSending(true);
+    try {
+      // تنفيذ الحفظ والإرسال السحابي الفعلي وتحديث بيانات المعلم
+      await onConfirmSend();
+      setIsSentConfirmed(true);
+      setTimeout(() => {
+        onClose();
+        if (onGoToHistory) onGoToHistory();
+      }, 1200);
+    } catch (err) {
+      console.error('Failed to send submission:', err);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-xs overflow-y-auto animate-fadeIn">
       <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-emerald-100 overflow-hidden my-6">
-        {/* Header with Islamic Ornament / Header Gradient */}
         <div className="bg-linear-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white p-6 relative">
           <button
             onClick={onClose}
@@ -94,10 +105,8 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           </p>
         </div>
 
-        {/* Score & Metrics Cards */}
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            {/* Grade out of 10 */}
             <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-center">
               <span className="text-[11px] font-bold text-emerald-800 block mb-1">التقييم العام</span>
               <div className="text-2xl sm:text-3xl font-black text-emerald-900 flex items-baseline justify-center gap-0.5 font-mono">
@@ -106,7 +115,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               </div>
             </div>
 
-            {/* Tajweed Score */}
             <div className="p-3.5 rounded-2xl bg-teal-50/80 border border-teal-200 text-center">
               <span className="text-[11px] font-bold text-teal-800 block mb-1">درجة التجويد</span>
               <div className="text-2xl sm:text-3xl font-black text-teal-900 flex items-baseline justify-center gap-0.5 font-mono">
@@ -115,7 +123,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               </div>
             </div>
 
-            {/* Accuracy Percentage */}
             <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-center">
               <span className="text-[11px] font-bold text-amber-800 block mb-1">نسبة الدقة</span>
               <div className="text-2xl sm:text-3xl font-black text-amber-900 font-mono">
@@ -123,7 +130,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               </div>
             </div>
 
-            {/* Correct Words */}
             <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 text-center">
               <span className="text-[11px] font-bold text-stone-700 block mb-1">الكلمات الصحيحة</span>
               <div className="text-2xl font-black text-stone-900 font-mono">
@@ -131,7 +137,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
               </div>
             </div>
 
-            {/* Inaccurate Words */}
             <div className="p-3.5 rounded-2xl bg-red-50/80 border border-red-200 text-center col-span-2 sm:col-span-1">
               <span className="text-[11px] font-bold text-red-800 block mb-1">تنبيهات النطق</span>
               <div className="text-2xl font-black text-red-900 font-mono">
@@ -140,7 +145,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             </div>
           </div>
 
-          {/* Audio Player of the submission */}
           {audioBase64 && (
             <div>
               <div className="flex items-center gap-2 mb-2 text-xs font-bold text-stone-700">
@@ -151,26 +155,11 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             </div>
           )}
 
-          {/* Color-Coded Verses Word-by-Word Breakdown */}
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <h3 className="text-sm font-bold text-stone-900">
                 التصحيح القرآني المظلل للآيات:
               </h3>
-              <div className="flex items-center gap-3 text-[11px] font-medium">
-                <span className="flex items-center gap-1 text-emerald-700">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
-                  صحيح
-                </span>
-                <span className="flex items-center gap-1 text-amber-700">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
-                  ملاحظة نطق
-                </span>
-                <span className="flex items-center gap-1 text-red-600">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
-                  منسية / خطأ
-                </span>
-              </div>
             </div>
 
             <div className="p-5 bg-stone-50 rounded-2xl border border-stone-200 max-h-64 overflow-y-auto">
@@ -187,13 +176,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
                     <span
                       key={idx}
                       className={`px-2 py-0.5 rounded-lg border text-base sm:text-xl transition-all ${badgeColor}`}
-                      title={
-                        item.status === 'correct'
-                          ? 'نطق صحيح ومتقن'
-                          : item.status === 'mispronounced'
-                          ? `ملاحظة نطق: قُرئت "${item.recognizedWord || ''}"`
-                          : 'كلمة لم تُقرأ أو قُرئت بلفظ مختلف'
-                      }
                     >
                       {item.word}
                     </span>
@@ -203,30 +185,33 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
             </div>
           </div>
 
-          {/* Detailed Tajweed Breakdown Card */}
           {tajweedReport && (
             <TajweedBreakdownCard report={tajweedReport} compact={false} />
           )}
 
-          {/* Action Buttons & Confirm Submit to Teacher */}
           <div className="space-y-3 pt-2">
             <button
               onClick={handleConfirmAndSend}
-              disabled={isSentConfirmed}
+              disabled={isSending || isSentConfirmed}
               className={`w-full py-3.5 px-4 rounded-xl text-xs font-black flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer ${
                 isSentConfirmed 
                   ? 'bg-emerald-600 text-white' 
                   : 'bg-linear-to-r from-emerald-700 via-emerald-800 to-teal-900 hover:from-emerald-800 hover:to-teal-950 text-white'
               }`}
             >
-              {isSentConfirmed ? (
+              {isSending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>جاري إرسال واعتماد التلاوة لدى المعلم...</span>
+                </>
+              ) : isSentConfirmed ? (
                 <>
                   <CheckCircle2 className="w-5 h-5 text-amber-300 animate-bounce" />
                   <span>تم اعتماد وإرسال النتيجة لمعلم الصف بنجاح!</span>
                 </>
               ) : (
                 <>
-                  <Send className="w-4 h-4 rotate-180 text-amber-300" />
+                  <Sparkles className="w-4 h-4 text-amber-300" />
                   <span>تأكيد وإرسال التلاوة الرسمية لمعلم الصف</span>
                 </>
               )}
