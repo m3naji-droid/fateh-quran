@@ -42,6 +42,47 @@ function wordSimilarity(w1: string, w2: string): number {
   return Math.max(0, 1 - dist / maxLen);
 }
 
+/**
+ * دالة ذكية لإزالة الاستعاذة والبسملة (أو أجزائهما) من بدايات النص المنطوق
+ * لمنع إزاحة مؤشر التتبع وضياع ترتيب الكلمات القرآنية.
+ */
+function cleanRecitationPrefixes(words: string[]): string[] {
+  if (!words || words.length === 0) return words;
+
+  // تحويل الكلمات إلى نص نظيف وموحد للمقارنة
+  let textJoined = words.map(w => cleanArabicText(w)).join(' ');
+
+  // قائمة العبارات الشائعة للاستعاذة والبسملة بصيغها المختلفة بعد التنظيف
+  const prefixesToRemove = [
+    "اعوذ بالله من الشيطان الرجيم",
+    "اعوذ بالله السميع العليم من الشيطان الرجيم",
+    "بسم الله الرحمن الرحيم",
+    "بسم الله",
+    "الحمد لله رب العالمين"
+  ];
+
+  let modified = true;
+  while (modified) {
+    modified = false;
+    for (const prefix of prefixesToRemove) {
+      if (textJoined.startsWith(prefix)) {
+        textJoined = textJoined.substring(prefix.length).trim();
+        modified = true;
+      }
+    }
+  }
+
+  // إزالة الكلمات المنفردة الزائدة في البداية إن وجدت (مثل: أعوذ، بالله، الشيطان، الرجيم، بسم...)
+  const stopWords = new Set(["اعوذ", "بالله", "من", "الشيطان", "الرجيم", "بسم", "الله", "الرحمن", "الرحيم"]);
+  let remainingWords = textJoined.split(/\s+/).filter(Boolean);
+
+  while (remainingWords.length > 0 && stopWords.has(remainingWords[0])) {
+    remainingWords.shift();
+  }
+
+  return remainingWords;
+}
+
 export interface EvaluationResult {
   accuracyPercentage: number;
   aiScore: number; // 0 - 10
@@ -63,7 +104,10 @@ export function evaluateRecitationLocally(
 ): EvaluationResult {
   const expectedQuranWords: QuranicWord[] = getVerseWords(startAyah, endAyah);
   const cleanedTranscription = cleanArabicText(transcribedInput);
-  const spokenWords = cleanedTranscription.split(/\s+/).filter(Boolean);
+  const rawSpokenWords = cleanedTranscription.split(/\s+/).filter(Boolean);
+
+  // تطبيق مصفاة إزالة الاستعاذة والبسملة هنا لتعديل بداية المصفوفة بدقة
+  const spokenWords = cleanRecitationPrefixes(rawSpokenWords);
 
   const wordEvaluations: WordEvaluation[] = [];
 
@@ -204,7 +248,7 @@ export function evaluateRecitationLocally(
       overallTajweedScore: tajweedScore
     },
     wordEvaluations,
-    transcribedText: spokenWords.join(" ") || `تلاوة مسجلة بمدة ${audioDurationSeconds} ثانية`,
+    transcribedText: rawSpokenWords.join(" ") || `تلاوة مسجلة بمدة ${audioDurationSeconds} ثانية`,
     summaryFeedback,
     correctCount,
     missingCount,
