@@ -59,11 +59,6 @@ export const TeacherDashboard = () => {
   const [asgInstructions, setAsgInstructions] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // حالات نظام التقييم المعدل (نطق الحروف من 5، التجويد من 5، والمجموع التلقائي من 10)
-  const [pronunciationScore, setPronunciationScore] = useState<number>(4.0);
-  const [tajweedScore, setTajweedScore] = useState<number>(4.5);
-  const totalScore = Number(((Number(pronunciationScore) || 0) + (Number(tajweedScore) || 0)).toFixed(1));
-
   // حالات البحث والتصفية للطلاب
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('all');
@@ -116,7 +111,7 @@ export const TeacherDashboard = () => {
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-black text-base text-emerald-950">لوحة تحكم المعلم - مقرأة سورة يس</h1>
+            <h1 className="font-black text-base text-emerald-955">لوحة تحكم المعلم - مقرأة سورة يس</h1>
             <p className="text-xs text-stone-500">إدارة الطلاب، الواجبات، ومتابعة تلاوات الفصل</p>
           </div>
         </div>
@@ -378,54 +373,7 @@ export const TeacherDashboard = () => {
             <span className="text-xs text-stone-500">متابعة الأداء الصوتي والدرجات</span>
           </div>
 
-          {/* معاينة نموذج التقييم الجديد (خانة من 5 + خانة من 5 = المجموع من 10) */}
-          <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-4 max-w-md mx-auto">
-            <h4 className="font-bold text-xs text-stone-900 text-center">نموذج تقييم المعلم (محدث)</h4>
-            
-            <div className="flex items-center justify-center gap-2 bg-white p-3 rounded-xl border border-stone-200 shadow-xs">
-              {/* الخانة الأولى: نطق الحروف من 5 */}
-              <div className="text-center">
-                <span className="text-[10px] text-stone-600 block mb-1 font-semibold">نطق الحروف (5)</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="5"
-                  step="0.5"
-                  value={pronunciationScore}
-                  onChange={(e) => setPronunciationScore(Math.min(5, Math.max(0, parseFloat(e.target.value) || 0)))}
-                  className="w-16 px-2 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-mono font-bold text-center focus:ring-2 focus:ring-emerald-700 focus:outline-none"
-                />
-              </div>
-
-              <span className="text-stone-400 font-bold text-base mt-4">+</span>
-
-              {/* الخانة الثانية: أحكام التجويد من 5 */}
-              <div className="text-center">
-                <span className="text-[10px] text-stone-600 block mb-1 font-semibold">التجويد (5)</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="5"
-                  step="0.5"
-                  value={tajweedScore}
-                  onChange={(e) => setTajweedScore(Math.min(5, Math.max(0, parseFloat(e.target.value) || 0)))}
-                  className="w-16 px-2 py-1.5 bg-stone-50 border border-stone-300 rounded-lg text-xs font-mono font-bold text-center focus:ring-2 focus:ring-emerald-700 focus:outline-none"
-                />
-              </div>
-
-              <span className="text-stone-400 font-bold text-base mt-4">=</span>
-
-              {/* الخانة الثالثة: المجموع الكلي من 10 */}
-              <div className="text-center bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
-                <span className="text-[10px] text-emerald-800 block mb-1 font-bold">المجموع</span>
-                <span className="text-xs font-black font-mono text-emerald-950">
-                  {totalScore} <span className="text-[9px]">/10</span>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="text-center py-6 bg-stone-50 rounded-2xl border border-dashed border-stone-200 text-stone-500 text-xs mt-4">
+          <div className="text-center py-12 bg-stone-50 rounded-2xl border border-dashed border-stone-200 text-stone-500 text-xs">
             لا توجد تسجيلات معلقة جديدة حالياً. ستظهر تلاوات الطلاب هنا بمجرد إرسالهم للواجبات.
           </div>
         </div>
