@@ -120,7 +120,7 @@ export function subscribeToCloudData(callbacks: {
         teacherGrade: data.teacherGrade !== undefined ? data.teacherGrade : null,
         teacherNotes: data.teacherNotes || '',
         wordEvaluations: data.wordEvaluations || [],
-        audioBase64: data.audioBase64 || '',
+        audioBase64: '', // ترك الملف الصوتي فارغاً للمزامنة السريعة والخفيفة
       });
     });
 
@@ -269,21 +269,19 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
   const submissions = getSubmissions();
   const id = `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
-  // ضغط حجم التلاوة الصوتية لضمان عدم تجاوز حد 1 ميجابايت لوثائق فايربيس
-  const compressedAudio = submission.audioBase64 ? submission.audioBase64.substring(0, 50000) : '';
-
   const newSubmission: Submission = {
     ...submission,
     id,
     submittedAt: new Date().toISOString(),
     teacherGrade: submission.teacherGrade ?? null,
     teacherNotes: submission.teacherNotes || '',
-    audioBase64: compressedAudio,
+    audioBase64: '', // عدم تخزين الصوت الثقيل محلياً بشكل ضخم أيضاً لتخفيف الذاكرة
   };
 
   submissions.unshift(newSubmission);
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
 
+  // إرسال البيانات الأساسية والدرجات والتقارير فقط للسحابة لضمان المزامنة الفورية اللحظية
   const cloudSubmission: Record<string, any> = {
     id: newSubmission.id,
     assignmentId: newSubmission.assignmentId,
@@ -302,7 +300,7 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
     teacherGrade: newSubmission.teacherGrade,
     teacherNotes: newSubmission.teacherNotes,
     wordEvaluations: newSubmission.wordEvaluations || [],
-    audioBase64: newSubmission.audioBase64,
+    audioBase64: '', // إرسال فارغ لضمان السرعة ومنع حظر الحجم
   };
 
   if (newSubmission.tajweedReport) {
@@ -311,7 +309,7 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
 
   try {
     await setDoc(doc(db, 'submissions', id), cloudSubmission);
-    console.log("تم حفظ التسجيل وإرساله للسحابة بنجاح!");
+    console.log("تم مزامنة نتيجة التلاوة والدرجات بنجاح تام!");
   } catch (err) {
     console.warn('Cloud submission save warning:', err);
   }
