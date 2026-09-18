@@ -9,15 +9,15 @@ import { TajweedBreakdownCard } from './TajweedBreakdownCard';
 interface EvaluationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  aiScore: number;
+  aiScore: number; // سنعتبرها هنا درجة نطق الحروف (من 5) أو يمكن تمريرها مباشرة
   accuracyPercentage: number;
-  tajweedScore?: number;
+  tajweedScore?: number; // درجة التجويد (من 5)
   tajweedReport?: TajweedAnalysisReport;
   wordEvaluations: WordEvaluation[];
   summaryFeedback: string;
   audioBase64?: string;
   onGoToHistory?: () => void;
-  onConfirmSend: () => Promise<void>; // دالة الحفظ والإرسال الفعلية
+  onConfirmSend: () => Promise<void>;
 }
 
 export const EvaluationModal: React.FC<EvaluationModalProps> = ({
@@ -25,7 +25,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   onClose,
   aiScore,
   accuracyPercentage,
-  tajweedScore,
+  tajweedScore = 0,
   tajweedReport,
   wordEvaluations,
   summaryFeedback,
@@ -36,11 +36,16 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const [isSending, setIsSending] = useState(false);
   const [isSentConfirmed, setIsSentConfirmed] = useState(false);
 
+  // حساب الدرجات المحددة من 5 ومن 10
+  const pronunciationScoreNum = Number(aiScore.toFixed(1));
+  const tajweedScoreNum = Number(tajweedScore.toFixed(1));
+  const totalScoreNum = Number((pronunciationScoreNum + tajweedScoreNum).toFixed(1));
+
   useEffect(() => {
     if (isOpen) {
       setIsSentConfirmed(false);
       setIsSending(false);
-      if (aiScore >= 8) {
+      if (totalScoreNum >= 8) {
         try {
           confetti({
             particleCount: 80,
@@ -51,7 +56,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         } catch {}
       }
     }
-  }, [isOpen, aiScore]);
+  }, [isOpen, totalScoreNum]);
 
   if (!isOpen) return null;
 
@@ -62,7 +67,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const handleConfirmAndSend = async () => {
     setIsSending(true);
     try {
-      // تنفيذ الحفظ والإرسال السحابي الفعلي وتحديث بيانات المعلم
       await onConfirmSend();
       setIsSentConfirmed(true);
       setTimeout(() => {
@@ -106,40 +110,57 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         </div>
 
         <div className="p-6 space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-center">
-              <span className="text-[11px] font-bold text-emerald-800 block mb-1">التقييم العام</span>
-              <div className="text-2xl sm:text-3xl font-black text-emerald-900 flex items-baseline justify-center gap-0.5 font-mono">
-                <span>{aiScore.toFixed(1)}</span>
-                <span className="text-xs text-emerald-600 font-normal">/ 10</span>
+          {/* تقسيم الدرجات إلى 3 خانات مستقلة */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            
+            {/* الخانة الأولى: نطق الحروف */}
+            <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-center shadow-sm">
+              <span className="text-xs font-bold text-blue-700 block mb-1">نطق الحروف</span>
+              <div className="text-3xl font-black text-blue-900 flex items-baseline justify-center gap-0.5 font-mono">
+                <span>{pronunciationScoreNum}</span>
+                <span className="text-xs text-blue-500 font-normal">/ 5</span>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-teal-50/80 border border-teal-200 text-center">
-              <span className="text-[11px] font-bold text-teal-800 block mb-1">درجة التجويد</span>
-              <div className="text-2xl sm:text-3xl font-black text-teal-900 flex items-baseline justify-center gap-0.5 font-mono">
-                <span>{tajweedScore !== undefined ? tajweedScore.toFixed(1) : aiScore.toFixed(1)}</span>
-                <span className="text-xs text-teal-600 font-normal">/ 10</span>
+            {/* الخانة الثانية: أحكام التجويد */}
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center shadow-sm">
+              <span className="text-xs font-bold text-emerald-700 block mb-1">أحكام التجويد</span>
+              <div className="text-3xl font-black text-emerald-900 flex items-baseline justify-center gap-0.5 font-mono">
+                <span>{tajweedScoreNum}</span>
+                <span className="text-xs text-emerald-500 font-normal">/ 5</span>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-center">
+            {/* الخانة الثالثة: الدرجة الكلية */}
+            <div className="p-4 rounded-2xl bg-purple-50 border border-purple-200 text-center shadow-sm sm:col-span-1 col-span-1">
+              <span className="text-xs font-bold text-purple-700 block mb-1">الدرجة الكلية</span>
+              <div className="text-3xl font-black text-purple-900 flex items-baseline justify-center gap-0.5 font-mono">
+                <span>{totalScoreNum}</span>
+                <span className="text-xs text-purple-500 font-normal">/ 10</span>
+              </div>
+            </div>
+
+          </div>
+
+          {/* تفاصيل إضافية (نسبة الدقة والكلمات) */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-center">
               <span className="text-[11px] font-bold text-amber-800 block mb-1">نسبة الدقة</span>
-              <div className="text-2xl sm:text-3xl font-black text-amber-900 font-mono">
+              <div className="text-xl font-black text-amber-900 font-mono">
                 {accuracyPercentage}%
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 text-center">
+            <div className="p-3 rounded-xl bg-stone-50 border border-stone-200 text-center">
               <span className="text-[11px] font-bold text-stone-700 block mb-1">الكلمات الصحيحة</span>
-              <div className="text-2xl font-black text-stone-900 font-mono">
+              <div className="text-xl font-black text-stone-900 font-mono">
                 {correctWords}
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-red-50/80 border border-red-200 text-center col-span-2 sm:col-span-1">
+            <div className="p-3 rounded-xl bg-red-50/80 border border-red-200 text-center">
               <span className="text-[11px] font-bold text-red-800 block mb-1">تنبيهات النطق</span>
-              <div className="text-2xl font-black text-red-900 font-mono">
+              <div className="text-xl font-black text-red-900 font-mono">
                 {mispronouncedWords + missingWords}
               </div>
             </div>
