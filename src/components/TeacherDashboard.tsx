@@ -18,7 +18,7 @@ import {
   AlertCircle 
 } from 'lucide-react';
 
-export const QuranSystemDashboard = () => {
+export const TeacherDashboard = () => {
   // الحالة العامة للتنقل بين الأقسام
   const [activeSection, setActiveSection] = useState<'students' | 'assignments' | 'evaluations'>('students');
 
@@ -241,7 +241,6 @@ export const QuranSystemDashboard = () => {
             <span>إدارة الواجبات القرآنية المسندة</span>
           </h3>
           <p className="text-xs text-stone-500 mb-4">الواجبات الحالية: {assignments.length}</p>
-          {/* محتوى الواجبات المبسط */}
         </div>
       )}
 
@@ -249,7 +248,7 @@ export const QuranSystemDashboard = () => {
       {activeSection === 'evaluations' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* واجهة تقييم المعلم (تظهر فيها الخانات المستقلة ومجموعها 10) */}
+          {/* واجهة تقييم المعلم */}
           <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-xs space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b border-stone-100">
               <span className="p-2 bg-emerald-50 text-emerald-800 rounded-xl">
@@ -313,7 +312,6 @@ export const QuranSystemDashboard = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {/* عرض نطق الحروف */}
               <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-100 text-center">
                 <span className="text-[11px] text-stone-600 font-medium block mb-1">نطق الحروف</span>
                 <span className="text-sm font-black font-mono text-emerald-800">
@@ -321,7 +319,6 @@ export const QuranSystemDashboard = () => {
                 </span>
               </div>
 
-              {/* عرض التجويد */}
               <div className="p-3.5 bg-stone-50 rounded-2xl border border-stone-100 text-center">
                 <span className="text-[11px] text-stone-600 font-medium block mb-1">التجويد والأحكام</span>
                 <span className="text-sm font-black font-mono text-emerald-800">
@@ -330,7 +327,6 @@ export const QuranSystemDashboard = () => {
               </div>
             </div>
 
-            {/* عرض الدرجة الكلية للطالب */}
             <div className="p-4 bg-emerald-900 text-white rounded-2xl flex items-center justify-between shadow-xs">
               <span className="text-xs font-bold">مجموع الدرجة الكلية</span>
               <span className="text-sm font-black font-mono bg-emerald-800 px-4 py-1.5 rounded-xl border border-emerald-700">
@@ -345,4 +341,4 @@ export const QuranSystemDashboard = () => {
   );
 };
 
-export default QuranSystemDashboard;
+export default TeacherDashboard;
