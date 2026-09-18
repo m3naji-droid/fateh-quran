@@ -14,6 +14,11 @@ export const TajweedBreakdownCard: React.FC<TajweedBreakdownCardProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<TajweedCategory | 'all'>('all');
   const [isExpanded, setIsExpanded] = useState(!compact);
 
+  // حساب درجة التجويد من 5 بناءً على الدرجة العامة (التي تكون عادة من 10) أو استخدامها مباشرة
+  const tajweedScoreOutOf5 = report.overallTajweedScore > 5 
+    ? (report.overallTajweedScore / 2).toFixed(1) 
+    : report.overallTajweedScore.toFixed(1);
+
   const categoriesConfig: { key: TajweedCategory; label: string; icon: string; count: number }[] = [
     { key: 'noon_tanween', label: 'النون الساكنة والتنوين', icon: '✨', count: report.rulesByCategory.noon_tanween.length },
     { key: 'meem_sakina', label: 'الميم الساكنة', icon: '💫', count: report.rulesByCategory.meem_sakina.length },
@@ -51,11 +56,11 @@ export const TajweedBreakdownCard: React.FC<TajweedBreakdownCardProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Tajweed Score */}
+          {/* Tajweed Score (Out of 5 according to the dual grading system) */}
           <div className="text-center px-3 py-1.5 rounded-xl bg-white/10 border border-white/20">
             <span className="text-[10px] text-emerald-200 block font-semibold">درجة التجويد</span>
             <span className="text-lg font-black text-amber-300 font-mono">
-              {report.overallTajweedScore.toFixed(1)} <span className="text-xs text-emerald-100">/ 10</span>
+              {tajweedScoreOutOf5} <span className="text-xs text-emerald-100">/ 5</span>
             </span>
           </div>
 
