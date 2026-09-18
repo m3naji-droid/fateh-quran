@@ -1,235 +1,434 @@
 import React, { useState } from 'react';
-import { Sparkles, CheckCircle2, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import { TajweedAnalysisReport, TajweedCategory } from '../utils/tajweedEngine';
+import { 
+  Award, 
+  BookOpen, 
+  CheckCircle2, 
+  Users, 
+  GraduationCap, 
+  Trash2, 
+  Pencil, 
+  Download, 
+  Upload, 
+  Search, 
+  Check, 
+  X, 
+  UserX, 
+  FileSpreadsheet, 
+  Save, 
+  AlertCircle 
+} from 'lucide-react';
 
-interface TajweedBreakdownCardProps {
-  report: TajweedAnalysisReport;
-  compact?: boolean;
-}
+export const TeacherDashboard = () => {
+  // الحالة العامة للتنقل بين أقسام لوحة تحكم المعلم
+  const [activeTab, setActiveTab] = useState<'roster' | 'assignments' | 'submissions'>('roster');
 
-export const TajweedBreakdownCard: React.FC<TajweedBreakdownCardProps> = ({
-  report,
-  compact = false
-}) => {
-  const [selectedCategory, setSelectedCategory] = useState<TajweedCategory | 'all'>('all');
-  const [isExpanded, setIsExpanded] = useState(!compact);
+  // بيانات وهمية لصفوف الطلاب والواجبات
+  const [classes] = useState([
+    { id: 'c1', name: 'صف أول متوسط (أ)' },
+    { id: 'c2', name: 'صف ثاني متوسط (ب)' }
+  ]);
 
-  // حساب الدرجات الثلاث بناءً على التقرير
-  // نطق الحروف من 5 (افتراضياً يعتمد على نسبة الدقة أو التقسيم العام)
-  const letterScore = Number(((report.overallTajweedScore / 10) * 5).toFixed(1));
-  // التجويد من 5
-  const tajweedScorePart = Number(((report.overallTajweedScore / 10) * 5).toFixed(1));
-  // المجموع الكلي من 10
-  const totalScore = Number((letterScore + tajweedScorePart).toFixed(1));
+  const [students, setStudents] = useState([
+    { id: 's1', classId: 'c1', name: 'محمد أحمد عبدالله', personalNumber: '123456789' },
+    { id: 's2', classId: 'c1', name: 'عبدالله خالد إبراهيم', personalNumber: '987654321' },
+    { id: 's3', classId: 'c2', name: 'يوسف إبراهيم علي', personalNumber: '456789123' }
+  ]);
 
-  const categoriesConfig: { key: TajweedCategory; label: string; icon: string; count: number }[] = [
-    { key: 'noon_tanween', label: 'النون الساكنة والتنوين', icon: '✨', count: report.rulesByCategory.noon_tanween.length },
-    { key: 'meem_sakina', label: 'الميم الساكنة', icon: '💫', count: report.rulesByCategory.meem_sakina.length },
-    { key: 'madd', label: 'أحكام المدود', icon: '〰️', count: report.rulesByCategory.madd.length },
-    { key: 'qalqala', label: 'أحكام القلقلة (قطب جد)', icon: '⚡', count: report.rulesByCategory.qalqala.length },
-    { key: 'ghunnah', label: 'الغنن والمشددات', icon: '🔔', count: report.rulesByCategory.ghunnah.length },
-    { key: 'tafkheem', label: 'التفخيم والترقيق', icon: '🎯', count: report.rulesByCategory.tafkheem.length },
-  ];
+  const [assignments, setAssignments] = useState([
+    { 
+      id: 'asg1', 
+      classId: 'c1', 
+      title: 'تلاوة سورة يس (الآيات 1 - 12)', 
+      startAyah: 1, 
+      endAyah: 12, 
+      instructions: 'الالتزام بمخرج الحروف والمد الطبيعي.', 
+      createdAt: '2026-06-01' 
+    }
+  ]);
 
-  const filteredRules = selectedCategory === 'all' 
-    ? report.allRules 
-    : report.rulesByCategory[selectedCategory] || [];
+  // حالات إضافة طالب جديد
+  const [newName, setNewName] = useState('');
+  const [newPersonalId, setNewPersonalId] = useState('');
+  const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id || '');
 
-  return (
-    <div className="bg-white rounded-3xl border border-emerald-200/80 shadow-xs overflow-hidden">
-      {/* Header Banner */}
-      <div className="bg-linear-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/30 flex items-center justify-center font-bold text-lg shrink-0">
-            📜
-          </div>
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-extrabold text-sm sm:text-base text-white">
-                فحص وضبط أحكام التجويد المطبقة
-              </h3>
-              <span className="text-[10px] font-bold bg-amber-400/20 text-amber-200 px-2.5 py-0.5 rounded-full border border-amber-400/35">
-                تدقيق تجويدي آلي
-              </span>
-            </div>
-            <p className="text-xs text-emerald-100/80 mt-0.5">
-              تحليل أحكام النون والميم الساكنتين، المدود، القلقلة، الغنن والتفخيم
-            </p>
-          </div>
-        </div>
+  // حالات إنشاء واجب جديد
+  const [asgTitle, setAsgTitle] = useState('تلاوة سورة يس');
+  const [asgClassId, setAsgClassId] = useState('all');
+  const [asgStartAyah, setAsgStartAyah] = useState(1);
+  const [asgEndAyah, setAsgEndAyah] = useState(12);
+  const [asgInstructions, setAsgInstructions] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-          {/* الأقسام الثلاثة للدرجات */}
-          <div className="flex items-center gap-1.5 bg-white/10 p-1.5 rounded-2xl border border-white/20">
-            <div className="text-center px-2 py-1 rounded-xl bg-emerald-950/40">
-              <span className="text-[9px] text-emerald-200 block font-bold">نطق الحروف</span>
-              <span className="text-xs font-black text-white font-mono">{letterScore} <span className="text-[9px] text-emerald-300">/5</span></span>
-            </div>
-            <div className="text-center px-2 py-1 rounded-xl bg-emerald-950/40">
-              <span className="text-[9px] text-emerald-200 block font-bold">التجويد</span>
-              <span className="text-xs font-black text-white font-mono">{tajweedScorePart} <span className="text-[9px] text-emerald-300">/5</span></span>
-            </div>
-            <div className="text-center px-2.5 py-1 rounded-xl bg-amber-500/30 border border-amber-400/40">
-              <span className="text-[9px] text-amber-200 block font-bold">المجموع</span>
-              <span className="text-sm font-black text-amber-300 font-mono">{totalScore} <span className="text-[9px] text-amber-200">/10</span></span>
-            </div>
-          </div>
+  // حالات نظام التقييم الثنائي (نطق الحروف من 5، التجويد من 5، والمجموع من 10)
+  const [pronunciationScore, setPronunciationScore] = useState<number>(4.5);
+  const [tajweedScore, setTajweedScore] = useState<number>(4.5);
+  const totalScore = Number((pronunciationScore + tajweedScore).toFixed(1));
 
-          {compact && (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer shrink-0"
-              title={isExpanded ? 'طي التفاصيل' : 'عرض التفاصيل'}
-            >
-              {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-            </button>
-          )}
-        </div>
-      </div>
+  // حالات البحث والتصفية للطلاب
+  const [searchTerm, setSearchTerm] = useState('');
+  const [classFilter, setClassFilter] = useState('all');
 
-      {isExpanded && (
-        <div className="p-5 space-y-5">
-          {/* Quick Metrics */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-center">
-              <span className="text-[11px] font-bold text-emerald-800 block">أحكام متقنة</span>
-              <span className="text-xl font-extrabold text-emerald-900 font-mono">
-                {report.masteredCount}
-              </span>
-            </div>
-            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 text-center">
-              <span className="text-[11px] font-bold text-amber-800 block">تنبيهات ضبط</span>
-              <span className="text-xl font-extrabold text-amber-900 font-mono">
-                {report.warningCount}
-              </span>
-            </div>
-            <div className="p-3 rounded-2xl bg-teal-50 border border-teal-200 text-center">
-              <span className="text-[11px] font-bold text-teal-800 block">إجمالي الأحكام</span>
-              <span className="text-xl font-extrabold text-teal-900 font-mono">
-                {report.rulesFoundCount}
-              </span>
-            </div>
-          </div>
+  // إضافة طالب
+  const handleAddStudent = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName || !newPersonalId) return;
+    const newStudent = {
+      id: 's_' + Date.now(),
+      classId: selectedClassId,
+      name: newName,
+      personalNumber: newPersonalId
+    };
+    setStudents([...students, newStudent]);
+    setNewName('');
+    setNewPersonalId('');
+  };
 
-          {/* Category Filter Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin">
-            <button
-              onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                selectedCategory === 'all'
-                  ? 'bg-emerald-800 text-white shadow-xs'
-                  : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-              }`}
-            >
-              كافة الأحكام ({report.rulesFoundCount})
-            </button>
-            {categoriesConfig.map((cat) => {
-              if (cat.count === 0) return null;
-              const isSelected = selectedCategory === cat.key;
-              return (
-                <button
-                  key={cat.key}
-                  onClick={() => setSelectedCategory(cat.key)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1 cursor-pointer ${
-                    isSelected
-                      ? 'bg-emerald-800 text-white shadow-xs'
-                      : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-                  }`}
-                >
-                  <span>{cat.icon}</span>
-                  <span>{cat.label}</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-800'
-                  }`}>
-                    {cat.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+  // إنشاء واجب
+  const handleCreateAssignment = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newAsg = {
+      id: 'asg_' + Date.now(),
+      classId: asgClassId,
+      title: asgTitle,
+      startAyah: asgStartAyah,
+      endAyah: asgEndAyah,
+      instructions: asgInstructions,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+    setAssignments([...assignments, newAsg]);
+    setSuccessMsg('تم إنشاء وإسناد الواجب بنجاح للطلاب.');
+    setTimeout(() => setSuccessMsg(''), 3000);
+  };
 
-          {/* Rules List */}
-          <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
-            {filteredRules.length === 0 ? (
-              <div className="text-center py-6 bg-stone-50 rounded-2xl border border-stone-200 text-stone-500 text-xs">
-                لا توجد أحكام محددة في هذا القسم للآيات المختارة
-              </div>
-            ) : (
-              filteredRules.map((rule) => {
-                let statusBadge = (
-                  <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />
-                    مُتقَن
-                  </span>
-                );
-                if (rule.status === 'warning') {
-                  statusBadge = (
-                    <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" />
-                      تنبيه ضبط
-                    </span>
-                  );
-                } else if (rule.status === 'needs_practice') {
-                  statusBadge = (
-                    <span className="text-[10px] font-bold bg-red-100 text-red-900 px-2 py-0.5 rounded-full border border-red-300 flex items-center gap-1">
-                      <HelpCircle className="w-3 h-3" />
-                      يحتاج تمرين
-                    </span>
-                  );
-                }
+  // تصفية الطلاب
+  const filteredStudents = students.filter(std => {
+    const matchesClass = classFilter === 'all' || std.classId === classFilter;
+    const matchesSearch = std.name.includes(searchTerm) || std.personalNumber.includes(searchTerm);
+    return matchesClass && matchesSearch;
+  });
 
-                return (
-                  <div
-                    key={rule.id}
-                    className="p-3.5 rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-emerald-50/40 transition-colors space-y-1.5"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-xs text-stone-900">
-                          {rule.ruleName}
-                        </span>
-                        <span className="text-[11px] font-bold font-quran bg-amber-100 text-amber-950 px-2 py-0.5 rounded-lg border border-amber-200">
-                          «{rule.word}»
-                        </span>
-                        <span className="text-[10px] bg-stone-200 text-stone-700 px-2 py-0.5 rounded-full font-bold">
-                          الآية ({rule.ayahNumber})
-                        </span>
-                      </div>
-                      <div className="shrink-0">
-                        {statusBadge}
-                      </div>
-                    </div>
+  return (
+    <div className="min-h-screen bg-stone-100 p-4 sm:p-6 font-sans text-stone-800" dir="rtl">
+      {/* شريط العنوان والتبويبات العلوي */}
+      <div className="bg-white rounded-3xl p-4 shadow-sm border border-stone-200 mb-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-emerald-700 text-white rounded-2xl shadow-sm">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <div>
+            <h1 className="font-black text-base text-emerald-950">لوحة تحكم المعلم - مقرأة سورة يس</h1>
+            <p className="text-xs text-stone-500">إدارة الطلاب، الواجبات، ومتابعة تلاوات الفصل</p>
+          </div>
+        </div>
 
-                    <p className="text-xs text-stone-600">
-                      {rule.description}
-                    </p>
+        <div className="flex items-center gap-2 bg-stone-50 p-1.5 rounded-2xl border border-stone-200">
+          <button
+            onClick={() => setActiveTab('roster')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'roster' ? 'bg-emerald-700 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            إدارة الطلاب والصفوف
+          </button>
+          <button
+            onClick={() => setActiveTab('assignments')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'assignments' ? 'bg-emerald-700 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            إدارة الواجبات
+          </button>
+          <button
+            onClick={() => setActiveTab('submissions')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'submissions' ? 'bg-emerald-700 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'
+            }`}
+          >
+            متابعة تسجيلات الطلاب
+          </button>
+        </div>
+      </div>
 
-                    <div className="p-2.5 rounded-xl bg-white border border-emerald-100 text-[11px] text-emerald-900 flex items-start gap-2 mt-1">
-                      <span className="font-bold text-emerald-700 shrink-0">💡 نصيحة التطبيق:</span>
-                      <span>{rule.tip}</span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
+      {/* التبويب الأول: إدارة الطلاب والصفوف */}
+      {activeTab === 'roster' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* إضافة طالب */}
+          <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-stone-200 shadow-xs">
+            <h3 className="font-bold text-sm text-stone-900 mb-4 flex items-center gap-2">
+              <Users className="w-4 h-4 text-emerald-700" />
+              <span>تسجيل طالب جديد في المقرأة</span>
+            </h3>
 
-          {/* Teacher Guidance Notes */}
-          {report.pedagogicalAdvice.length > 0 && (
-            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
-              <div className="flex items-center gap-1.5 font-bold mb-1">
-                <Sparkles className="w-4 h-4 text-amber-700" />
-                <span>إرشادات وضوابط التجويد الخاصة بآيات هذا الواجب:</span>
-              </div>
-              <ul className="list-disc list-inside space-y-1 text-[11px] text-stone-700">
-                {report.pedagogicalAdvice.map((advice, i) => (
-                  <li key={i}>{advice}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+            <form onSubmit={handleAddStudent} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-stone-700 block mb-1">اختر الصف الدراسي:</label>
+                <select
+                  value={selectedClassId}
+                  onChange={(e) => setSelectedClassId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                >
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-stone-700 block mb-1">اسم الطالب الرباعي:</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="مثال: محمد أحمد..."
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-stone-700 block mb-1">الرقم الشخصي (كلمة المرور للدخول):</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="مثال: 123456789"
+                  value={newPersonalId}
+                  onChange={(e) => setNewPersonalId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              >
+                حفظ وتسجيل الطالب
+              </button>
+            </form>
+          </div>
+
+          {/* جدول واستعراض الطلاب */}
+          <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-stone-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <h3 className="font-bold text-sm text-stone-900 flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-emerald-700" />
+                <span>سجل الطلاب ({filteredStudents.length})</span>
+              </h3>
+
+              {/* شريط البحث والتصفية */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:w-48">
+                  <Search className="w-3.5 h-3.5 text-stone-400 absolute right-3 top-3" />
+                  <input
+                    type="text"
+                    placeholder="بحث بالاسم أو الرقم..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pr-8 pl-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                  />
+                </div>
+                <select
+                  value={classFilter}
+                  onChange={(e) => setClassFilter(e.target.value)}
+                  className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:outline-none"
+                >
+                  <option value="all">كل الصفوف</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto max-h-[350px] overflow-y-auto">
+              <table className="w-full text-right border-collapse text-xs">
+                <thead className="sticky top-0 bg-stone-50">
+                  <tr className="border-b border-stone-200 text-stone-600 font-bold">
+                    <th className="py-2.5 px-3">اسم الطالب</th>
+                    <th className="py-2.5 px-3">الصف الدراسي</th>
+                    <th className="py-2.5 px-3">الرقم الشخصي</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {filteredStudents.map((std) => {
+                    const cls = classes.find(c => c.id === std.classId);
+                    return (
+                      <tr key={std.id} className="hover:bg-stone-50/60">
+                        <td className="py-2.5 px-3 font-bold text-stone-900">{std.name}</td>
+                        <td className="py-2.5 px-3 text-stone-600">{cls?.name || 'غير محدد'}</td>
+                        <td className="py-2.5 px-3 font-mono text-stone-600">#{std.personalNumber}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* التبويب الثاني: إدارة الواجبات */}
+      {activeTab === 'assignments' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* نموذج إنشاء واجب */}
+          <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-stone-200 shadow-xs">
+            <h3 className="font-bold text-sm text-stone-900 mb-4 flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-emerald-700" />
+              <span>إسناد واجب قرآني جديد</span>
+            </h3>
+
+            {successMsg && (
+              <div className="p-3 mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{successMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleCreateAssignment} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-stone-700 block mb-1">عنوان الواجب:</label>
+                <input
+                  type="text"
+                  required
+                  value={asgTitle}
+                  onChange={(e) => setAsgTitle(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1">من الآية:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="83"
+                    value={asgStartAyah}
+                    onChange={(e) => setAsgStartAyah(parseInt(e.target.value) || 1)}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1">إلى الآية:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="83"
+                    value={asgEndAyah}
+                    onChange={(e) => setAsgEndAyah(parseInt(e.target.value) || 12)}
+                    className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-stone-700 block mb-1">تعليمات وتوجيهات المعلم:</label>
+                <textarea
+                  rows={3}
+                  value={asgInstructions}
+                  onChange={(e) => setAsgInstructions(e.target.value)}
+                  placeholder="مثال: التركيز على أحكام المد والغنن..."
+                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              >
+                نشر وإرسال الواجب للطلاب
+              </button>
+            </form>
+          </div>
+
+          {/* قائمة الواجبات الحالية */}
+          <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-stone-200 shadow-xs space-y-4">
+            <h3 className="font-bold text-sm text-stone-900 flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-emerald-700" />
+              <span>الواجبات المسندة حالياً ({assignments.length})</span>
+            </h3>
+
+            <div className="space-y-3">
+              {assignments.map(asg => (
+                <div key={asg.id} className="p-4 bg-stone-50 rounded-2xl border border-stone-200 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-xs text-stone-900">{asg.title}</h4>
+                    <p className="text-[11px] text-stone-500 mt-1">
+                      النطاق: من آية {asg.startAyah} إلى آية {asg.endAyah} • تاريخ النشر: {asg.createdAt}
+                    </p>
+                    {asg.instructions && (
+                      <p className="text-[11px] text-emerald-800 mt-1 font-medium">التعليمات: {asg.instructions}</p>
+                    )}
+                  </div>
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold">
+                    نشط
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* التبويب الثالث: متابعة تسجيلات الطلاب */}
+      {activeTab === 'submissions' && (
+        <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-xs space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-stone-100">
+            <h3 className="font-bold text-sm text-stone-900 flex items-center gap-2">
+              <Award className="w-4 h-4 text-emerald-700" />
+              <span>سجل تلاوات الطلاب المرسلة للتقييم</span>
+            </h3>
+            <span className="text-xs text-stone-500">متابعة الأداء الصوتي والدرجات</span>
+          </div>
+
+          {/* معاينة نموذج نظام التقييم الثنائي (نطق الحروف من 5، والتجويد من 5، والمجموع الكلي من 10) */}
+          <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-4 max-w-lg mx-auto">
+            <h4 className="font-bold text-xs text-stone-900 text-center">نموذج تقييم التلاوة (معاينة)</h4>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                  نطق الحروف (من 5):
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.5"
+                  value={pronunciationScore}
+                  onChange={(e) => setPronunciationScore(Math.min(5, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                  أحكام التجويد (من 5):
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.5"
+                  value={tajweedScore}
+                  onChange={(e) => setTajweedScore(Math.min(5, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-900">المجموع الكلي للتقييم:</span>
+              <span className="text-sm font-black font-mono text-emerald-950 bg-white px-3 py-1 rounded-lg border border-emerald-300 shadow-xs">
+                {totalScore} / 10
+              </span>
+            </div>
+          </div>
+
+          <div className="text-center py-6 bg-stone-50 rounded-2xl border border-dashed border-stone-200 text-stone-500 text-xs mt-4">
+            لا توجد تسجيلات معلقة جديدة حالياً. ستظهر تلاوات الطلاب هنا بمجرد إرسالهم للواجبات.
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
+
+export default TeacherDashboard;
