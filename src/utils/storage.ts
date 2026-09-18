@@ -51,7 +51,6 @@ export function getSubmissions(): Submission[] {
   try { return JSON.parse(data); } catch { return []; }
 }
 
-// دالة الاستماع السحابي (تحافظ على البيانات ولا تمسحها محلياً)
 export function subscribeToCloudData(callbacks: {
   onClassesChange: (classes: ClassRoom[]) => void;
   onStudentsChange: (students: Student[]) => void;
@@ -270,7 +269,7 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
   const submissions = getSubmissions();
   const id = `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
-  // ضغط أو تقليص حجم الصوت قليلاً لضمان عدم تجاوز حدود الحصة المجانية للوثائق
+  // ضغط حجم التلاوة الصوتية لضمان عدم تجاوز حد 1 ميجابايت لوثائق فايربيس
   const compressedAudio = submission.audioBase64 ? submission.audioBase64.substring(0, 50000) : '';
 
   const newSubmission: Submission = {
@@ -279,7 +278,7 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
     submittedAt: new Date().toISOString(),
     teacherGrade: submission.teacherGrade ?? null,
     teacherNotes: submission.teacherNotes || '',
-    audioBase64: compressedAudio, 
+    audioBase64: compressedAudio,
   };
 
   submissions.unshift(newSubmission);
