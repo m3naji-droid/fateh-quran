@@ -292,11 +292,9 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
   };
 
   filteredSubmissions.unshift(newSubmission);
-  
-  // تحديث الذاكرة المحلية فوراً ليكون التطبيق جاهزاً من الضغطة الأولى
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(filteredSubmissions));
 
-  const cloudSubmission: Record<string, any> = {
+  const rawCloudSubmission: Record<string, any> = {
     id: newSubmission.id,
     assignmentId: newSubmission.assignmentId,
     assignmentTitle: newSubmission.assignmentTitle || '',
@@ -311,19 +309,22 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
     accuracyPercentage: newSubmission.accuracyPercentage ?? 100,
     aiScore: newSubmission.aiScore ?? 10,
     tajweedScore: newSubmission.tajweedScore ?? 10,
-    teacherGrade: newSubmission.teacherGrade,
-    teacherNotes: newSubmission.teacherNotes,
+    teacherGrade: newSubmission.teacherGrade ?? null,
+    teacherNotes: newSubmission.teacherNotes || '',
     wordEvaluations: newSubmission.wordEvaluations || [],
     audioBase64: '',
   };
 
   if (newSubmission.tajweedReport) {
-    cloudSubmission.tajweedReport = newSubmission.tajweedReport;
+    rawCloudSubmission.tajweedReport = newSubmission.tajweedReport;
   }
+
+  // تنظيف أي حقل قيمته undefined تماماً لمنع حدوث خطأ الفايربيس
+  const cloudSubmission = JSON.parse(JSON.stringify(rawCloudSubmission));
 
   try {
     await setDoc(doc(db, 'submissions', id), cloudSubmission);
-    console.log("تم إرسال وحفظ الاستجابة من المرة الأولى بنجاح!");
+    console.log("تم إرسال وحفظ الاستجابة من المرة الأولى بنجاح تام!");
   } catch (err) {
     console.error("خطأ في رفع الاستجابة للسحابة:", err);
   }
