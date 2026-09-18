@@ -239,7 +239,6 @@ export function evaluateRecitationLocally(
   const total = Math.max(1, wordEvaluations.length);
 
   // احتساب نسبة النطق الصحيح للحروف من 0 إلى 5 بناءً على عدد الكلمات الصحيحة
-  // (كل كلمة صحيحة تساهم بنسبة من الخمس درجات الإجمالية)
   const pronunciationScore = Number(((correctCount / total) * 5).toFixed(1));
 
   const effectiveScore = (correctCount * 1.0 + mispronouncedCount * 0.3) / total;
@@ -259,14 +258,24 @@ export function evaluateRecitationLocally(
     summaryFeedback = "النتيجة ضعيفة؛ يرجى الاستماع للشيخ بعناية والتدرب آية بآية قبل إعادة المحاولة.";
   }
 
-  const strictTajweedAccuracy = Math.max(0, accuracyPercentage - 10);
-  const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, strictTajweedAccuracy);
+  // التعديل هنا: جعل تقييم التجويد "سهلاً ومتسامحاً" تماماً (إلغاء الخصم الصارم السابق)
+  // تم تقليل نسبة الخصم وزيادة مرونة اعتبار الأحكام مطبقة بنجاح
+  const lenientTajweedAccuracy = Math.min(100, accuracyPercentage + 20); 
+  const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, lenientTajweedAccuracy);
   
-  // احتساب درجة التجويد من 0 إلى 5 بناءً على نسبة الأحكام المطبقة من إجمالي الأحكام المستهدفة
+  // احتساب درجة التجويد من 0 إلى 5 بناءً على نسبة الأحكام المطبقة (مع وضع حد أدنى متسامح لكي لا تنخفض الدرجة بشكل حاد)
   const rules = tajweedReport.rules || [];
   const totalRulesCount = rules.length > 0 ? rules.length : 1;
-  const appliedRulesCount = rules.filter(r => r.isApplied || (r.score && r.score > 0)).length;
-  const tajweedScore = Number(((appliedRulesCount / totalRulesCount) * 5).toFixed(1));
+  
+  // نعتبر الحكم مطبقاً بسهولة إذا كانت نسبة القراءة فوق 40% أو تم تحقيق شرط مرن
+  const appliedRulesCount = rules.filter(r => (accuracyPercentage >= 40) || r.isApplied || (r.score && r.score > 0)).length;
+  
+  // ضمان تساهل إضافي برفع الناتج قليلاً ليكون منصفاً وسهلاً
+  let calculatedTajweedScore = (appliedRulesCount / totalRulesCount) * 5;
+  if (accuracyPercentage >= 60 && calculatedTajweedScore < 3.5) {
+    calculatedTajweedScore = 3.5 + (calculatedTajweedScore * 0.3); // دعم الطلاب في التقييم السهل
+  }
+  const tajweedScore = Number(Math.min(5, Math.max(0, calculatedTajweedScore)).toFixed(1));
 
   return {
     accuracyPercentage,
