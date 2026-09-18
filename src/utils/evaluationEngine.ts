@@ -99,7 +99,8 @@ function cleanRecitationPrefixes(words: string[]): string[] {
 export interface EvaluationResult {
   accuracyPercentage: number;
   aiScore: number;
-  tajweedScore: number;
+  tajweedScore: number;         // درجة التجويد من 0 إلى 5
+  pronunciationScore: number;  // درجة النطق الصحيح من 0 إلى 5
   tajweedReport: TajweedAnalysisReport;
   wordEvaluations: WordEvaluation[];
   transcribedText: string;
@@ -141,6 +142,7 @@ export function evaluateRecitationLocally(
       accuracyPercentage: 0,
       aiScore: 0,
       tajweedScore: 0,
+      pronunciationScore: 0,
       tajweedReport,
       wordEvaluations,
       transcribedText: "تسجيل صامت أو فارغ",
@@ -236,6 +238,10 @@ export function evaluateRecitationLocally(
   const missingCount = wordEvaluations.filter(w => w.status === 'missing').length;
   const total = Math.max(1, wordEvaluations.length);
 
+  // احتساب نسبة النطق الصحيح للحروف من 0 إلى 5 بناءً على عدد الكلمات الصحيحة
+  // (كل كلمة صحيحة تساهم بنسبة من الخمس درجات الإجمالية)
+  const pronunciationScore = Number(((correctCount / total) * 5).toFixed(1));
+
   const effectiveScore = (correctCount * 1.0 + mispronouncedCount * 0.3) / total;
   const accuracyPercentage = Math.round(effectiveScore * 100);
   
@@ -255,12 +261,18 @@ export function evaluateRecitationLocally(
 
   const strictTajweedAccuracy = Math.max(0, accuracyPercentage - 10);
   const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, strictTajweedAccuracy);
-  const tajweedScore = Number((tajweedReport.overallTajweedScore * 0.9).toFixed(1));
+  
+  // احتساب درجة التجويد من 0 إلى 5 بناءً على نسبة الأحكام المطبقة من إجمالي الأحكام المستهدفة
+  const rules = tajweedReport.rules || [];
+  const totalRulesCount = rules.length > 0 ? rules.length : 1;
+  const appliedRulesCount = rules.filter(r => r.isApplied || (r.score && r.score > 0)).length;
+  const tajweedScore = Number(((appliedRulesCount / totalRulesCount) * 5).toFixed(1));
 
   return {
     accuracyPercentage,
     aiScore,
     tajweedScore,
+    pronunciationScore,
     tajweedReport: {
       ...tajweedReport,
       overallTajweedScore: tajweedScore
