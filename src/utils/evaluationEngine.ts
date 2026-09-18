@@ -146,7 +146,7 @@ export function evaluateRecitationLocally(
 
   let correctCount = 0;
   let mispronouncedCount = 0;
-  let lastMatchedIndex = -1; // لتتبع إلى أي مدى وصل الطالب في القراءة
+  let lastMatchedIndex = -1;
 
   if (spokenWords.length > 0) {
     let spokenIdx = 0;
@@ -154,7 +154,6 @@ export function evaluateRecitationLocally(
     for (let i = 0; i < expectedQuranWords.length; i++) {
       const expected = expectedQuranWords[i];
       
-      // إذا نفذت كلمات الطالب وتوقف عن التسجيل مبكراً (مثلاً قرأ 4 آيات من 12)
       if (spokenIdx >= spokenWords.length) {
         break;
       }
@@ -165,7 +164,7 @@ export function evaluateRecitationLocally(
       const startSearch = spokenIdx;
       const endSearch = Math.min(spokenWords.length, spokenIdx + windowSize);
 
-.      for (let s = startSearch; s < endSearch; s++) {
+      for (let s = startSearch; s < endSearch; s++) {
         const sim = wordSimilarity(expected.normalized, spokenWords[s]);
         if (sim > highestSim) {
           highestSim = sim;
@@ -201,7 +200,6 @@ export function evaluateRecitationLocally(
       });
     }
 
-    // إكمال باقي كلمات الآيات التي لم يقرأها الطالب كـ missing ولكن دون تدمير درجته الإجمالية
     for (let i = wordEvaluations.length; i < expectedQuranWords.length; i++) {
       const expected = expectedQuranWords[i];
       wordEvaluations.push({
@@ -223,16 +221,9 @@ export function evaluateRecitationLocally(
     });
   }
 
-  // عدد الكلمات التي حاول الطالب قراءتها فعلياً
   const attemptedWordsCount = Math.max(1, lastMatchedIndex + 1);
-  
-  // حساب دقة الأداء على الجزء المقروء فقط لإنصاف الطالب
   const recitedEffectiveScore = (correctCount * 1.0 + mispronouncedCount * 0.4) / attemptedWordsCount;
-  
-  // نسبة إنجاز الواجب (كمية الآيات التي غطاها مقارنة بالمطلوب كاملاً)
   const completionRatio = Math.min(1.0, attemptedWordsCount / expectedQuranWords.length);
-  
-  // الدمج العادل: دقة الأداء مضروبة في نسبة الإنجاز لضمان حصوله على درجته التناسبية الصحيحة (مثلاً 2 إلى 3 من 10 عند إنجاز ثلث المقطع)
   const finalBalancedScore = recitedEffectiveScore * Math.max(0.3, completionRatio);
 
   const accuracyPercentage = Math.max(15, Math.min(100, Math.round(finalBalancedScore * 100)));
@@ -240,8 +231,6 @@ export function evaluateRecitationLocally(
   const aiScore = Math.min(10, Math.max(0, rawAiScore));
 
   const missingCount = wordEvaluations.filter(w => w.status === 'missing').length;
-
-  // درجة النطق الصحيح (من 0 إلى 5) مبنية على دقة الكلمات المقروءة فعلياً
   const pronunciationScore = Number(Math.min(5, Math.max(0, recitedEffectiveScore * 5)).toFixed(1));
 
   let summaryFeedback = "";
@@ -253,13 +242,11 @@ export function evaluateRecitationLocally(
     summaryFeedback = "التلاوة غير مكتملة أو تحتاج لتركيز أكبر في النطق.";
   }
 
-  // تحليل التجويد مع منحه التقييم السهل والمتسامح
   const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage);
   
-  // درجة التجويد (من 0 إلى 5) تتناسب مع جودة الآيات المقروءة
   let calculatedTajweedScore = recitedEffectiveScore * 5;
   if (calculatedTajweedScore < 2.0 && accuracyPercentage >= 40) {
-    calculatedTajweedScore = 2.5; // حد أدنى منصف للمقاطع الجزئية
+    calculatedTajweedScore = 2.5;
   }
   const tajweedScore = Number(Math.min(5, Math.max(0, calculatedTajweedScore)).toFixed(1));
 
