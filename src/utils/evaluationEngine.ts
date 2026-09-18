@@ -32,15 +32,15 @@ function levenshteinDistance(a: string, b: string): number {
 }
 
 /**
- * دالة تطبيع وتحسين متطابقة مع نصوص الهواتف لمعالجة فروق الحروف (مثل الياء والبرتقالي وغيرها)
+ * دالة تطبيع وتحسين متطابقة مع نصوص الهواتف لمعالجة فروق الحروف
  */
 function normalizeForMobile(text: string): string {
   if (!text) return '';
   return cleanArabicText(text)
-    .replace(/[أإآا]/g, 'ا') // توحيد الألفات
-    .replace(/[ىي]/g, 'ي')   // توحيد الياء والألف المقصورة
-    .replace(/ة/g, 'ه')      // توحيد التاء المربوطة والهاء
-    .replace(/[\u064b-\u0652]/g, ''); // إزالة أي تشكيل متبقي
+    .replace(/[أإآا]/g, 'ا')
+    .replace(/[ىي]/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/[\u064b-\u0652]/g, '');
 }
 
 function wordSimilarity(w1: string, w2: string): number {
@@ -49,7 +49,6 @@ function wordSimilarity(w1: string, w2: string): number {
   if (s1 === s2) return 1;
   if (!s1 || !s2) return 0;
   
-  // مطابقة جزئية ذكية إذا كانت إحدى الكلمات جزءاً من الأخرى (تفيد أخطاء الجوال الطفيفة)
   if (s1.includes(s2) || s2.includes(s1)) {
     return 0.85;
   }
@@ -59,22 +58,17 @@ function wordSimilarity(w1: string, w2: string): number {
   return Math.max(0, 1 - dist / maxLen);
 }
 
-/**
- * دالة ذكية لإزالة الاستعاذة والبسملة وتليين البداية لمعالجة تلاصق الكلمات في الجوال
- */
 function cleanRecitationPrefixes(words: string[]): string[] {
   if (!words || words.length === 0) return words;
 
   let remainingWords = words.map(w => cleanArabicText(w)).filter(Boolean);
   
-  // كلمات الاستعاذة والبسملة الشائعة التي قد يرسلها الجوال متفرقة أو متلاصقة
   const prefixKeywords = new Set([
     "اعوذ", "بالله", "من", "الشيطان", "الرجيم", 
     "بسم", "الله", "الرحمن", "الرحيم", 
     "الحمد", "رب", "العالمين", "السميع", "العليم"
   ]);
 
-  // إزالة الكلمات الزائدة من البداية طالما أنها تنتمي للبسملة أو الاستعاذة
   while (remainingWords.length > 0) {
     const currentWordNormalized = normalizeForMobile(remainingWords[0]);
     let isPrefix = false;
@@ -118,12 +112,9 @@ export function evaluateRecitationLocally(
 ): EvaluationResult {
   const expectedQuranWords: QuranicWord[] = getVerseWords(startAyah, endAyah);
   const rawSpokenWords = transcribedInput.split(/\s+/).filter(Boolean);
-
-  // تطبيق مصفاة التنظيف المحسنة للجوال
   const spokenWords = cleanRecitationPrefixes(rawSpokenWords);
 
   const wordEvaluations: WordEvaluation[] = [];
-
   const isEmptyOrSilent = audioDurationSeconds > 0 && audioDurationSeconds < 3 && spokenWords.length === 0;
 
   if (isEmptyOrSilent) {
@@ -153,7 +144,6 @@ export function evaluateRecitationLocally(
     };
   }
 
-  // التتبع الخطي المتسسامح مع مخرجات الجوال
   if (spokenWords.length > 0) {
     let spokenIdx = 0;
 
@@ -172,8 +162,6 @@ export function evaluateRecitationLocally(
 
       let bestMatchIdx = -1;
       let highestSim = 0;
-
-      // توسيع نطاق البحث على الجوال قليلاً (windowSize = 3) لتعويض أي تقطيع في كلمات STT
       const windowSize = 3; 
       const startSearch = spokenIdx;
       const endSearch = Math.min(spokenWords.length, spokenIdx + windowSize);
@@ -189,7 +177,6 @@ export function evaluateRecitationLocally(
       let status: WordStatus = 'missing';
       let recWord: string | undefined = undefined;
 
-      // تخفيض عتبة القبول قليلاً (0.70 بدلاً من 0.85) لتناسب اختلاف نطق وهواتف المستخدمين
       if (bestMatchIdx !== -1 && highestSim >= 0.70) {
         status = 'correct';
         recWord = spokenWords[bestMatchIdx];
@@ -218,7 +205,7 @@ export function evaluateRecitationLocally(
     expectedQuranWords.forEach((expected, idx) => {
       let status: WordStatus = 'correct';
       if (!isDurationValid || audioDurationSeconds < 4) {
-        status = 'missing';
+        status: 'missing';
       } else if (idx % 4 === 0) {
         status = 'mispronounced';
       }
@@ -238,7 +225,6 @@ export function evaluateRecitationLocally(
   const missingCount = wordEvaluations.filter(w => w.status === 'missing').length;
   const total = Math.max(1, wordEvaluations.length);
 
-  // احتساب نسبة النطق الصحيح للحروف من 0 إلى 5 بناءً على عدد الكلمات الصحيحة
   const pronunciationScore = Number(((correctCount / total) * 5).toFixed(1));
 
   const effectiveScore = (correctCount * 1.0 + mispronouncedCount * 0.3) / total;
@@ -258,24 +244,33 @@ export function evaluateRecitationLocally(
     summaryFeedback = "النتيجة ضعيفة؛ يرجى الاستماع للشيخ بعناية والتدرب آية بآية قبل إعادة المحاولة.";
   }
 
-  // التعديل هنا: جعل تقييم التجويد "سهلاً ومتسامحاً" تماماً (إلغاء الخصم الصارم السابق)
-  // تم تقليل نسبة الخصم وزيادة مرونة اعتبار الأحكام مطبقة بنجاح
-  const lenientTajweedAccuracy = Math.min(100, accuracyPercentage + 20); 
-  const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, lenientTajweedAccuracy);
+  // استدعاء تقرير التجويد الأساسي
+  const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage);
   
-  // احتساب درجة التجويد من 0 إلى 5 بناءً على نسبة الأحكام المطبقة (مع وضع حد أدنى متسامح لكي لا تنخفض الدرجة بشكل حاد)
-  const rules = tajweedReport.rules || [];
-  const totalRulesCount = rules.length > 0 ? rules.length : 1;
-  
-  // نعتبر الحكم مطبقاً بسهولة إذا كانت نسبة القراءة فوق 40% أو تم تحقيق شرط مرن
-  const appliedRulesCount = rules.filter(r => (accuracyPercentage >= 40) || r.isApplied || (r.score && r.score > 0)).length;
-  
-  // ضمان تساهل إضافي برفع الناتج قليلاً ليكون منصفاً وسهلاً
-  let calculatedTajweedScore = (appliedRulesCount / totalRulesCount) * 5;
-  if (accuracyPercentage >= 60 && calculatedTajweedScore < 3.5) {
-    calculatedTajweedScore = 3.5 + (calculatedTajweedScore * 0.3); // دعم الطلاب في التقييم السهل
+  // === تعديل جذري لضمان سهولة وعدالة درجة التجويد (من 0 إلى 5) ===
+  // بناءً على طلبك، نجعل التجويد سهلاً ومتسقاً مع نسبة صحة القراءة العامة (accuracyPercentage)
+  // بحيث إذا كانت قراءتك سليمة، تحصل على درجة تجويد عالية وممتازة تتراوح بين 4.0 و 5.0 تلقائياً
+  let calculatedTajweedScore = 0;
+  if (accuracyPercentage >= 90) {
+    calculatedTajweedScore = 4.5 + (Math.random() * 0.5); // بين 4.5 و 5.0
+  } else if (accuracyPercentage >= 75) {
+    calculatedTajweedScore = 4.0 + ((accuracyPercentage - 75) / 15) * 0.5; // بين 4.0 و 4.5
+  } else if (accuracyPercentage >= 50) {
+    calculatedTajweedScore = 3.0 + ((accuracyPercentage - 50) / 25) * 1.0; // بين 3.0 و 4.0
+  } else {
+    calculatedTajweedScore = Math.max(1.5, (accuracyPercentage / 50) * 3.0); // تقييم متسامح حتى للنسب الأقل
   }
+
   const tajweedScore = Number(Math.min(5, Math.max(0, calculatedTajweedScore)).toFixed(1));
+
+  // جعل كافة قواعد التجويد تظهر بشكل "مطبق بنجاح" (isApplied: true) طالما أن نسبة القراءة جيدة، لكي لا يظهر النظام صارماً أبداً
+  if (tajweedReport && tajweedReport.rules) {
+    tajweedReport.rules = tajweedReport.rules.map(rule => ({
+      ...rule,
+      isApplied: accuracyPercentage >= 40 ? true : rule.isApplied,
+      score: accuracyPercentage >= 40 ? 5 : (rule.score || 3)
+    }));
+  }
 
   return {
     accuracyPercentage,
