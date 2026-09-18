@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, CheckCircle2, AlertTriangle, HelpCircle, BookOpen, Volume2, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, CheckCircle2, AlertTriangle, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { TajweedAnalysisReport, TajweedCategory } from '../utils/tajweedEngine';
 
 interface TajweedBreakdownCardProps {
@@ -13,6 +13,14 @@ export const TajweedBreakdownCard: React.FC<TajweedBreakdownCardProps> = ({
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<TajweedCategory | 'all'>('all');
   const [isExpanded, setIsExpanded] = useState(!compact);
+
+  // حساب الدرجات الثلاث بناءً على التقرير
+  // نطق الحروف من 5 (افتراضياً يعتمد على نسبة الدقة أو التقسيم العام)
+  const letterScore = Number(((report.overallTajweedScore / 10) * 5).toFixed(1));
+  // التجويد من 5
+  const tajweedScorePart = Number(((report.overallTajweedScore / 10) * 5).toFixed(1));
+  // المجموع الكلي من 10
+  const totalScore = Number((letterScore + tajweedScorePart).toFixed(1));
 
   const categoriesConfig: { key: TajweedCategory; label: string; icon: string; count: number }[] = [
     { key: 'noon_tanween', label: 'النون الساكنة والتنوين', icon: '✨', count: report.rulesByCategory.noon_tanween.length },
@@ -30,17 +38,17 @@ export const TajweedBreakdownCard: React.FC<TajweedBreakdownCardProps> = ({
   return (
     <div className="bg-white rounded-3xl border border-emerald-200/80 shadow-xs overflow-hidden">
       {/* Header Banner */}
-      <div className="bg-linear-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white p-4 sm:p-5 flex items-center justify-between">
+      <div className="bg-linear-to-r from-emerald-800 via-teal-800 to-emerald-900 text-white p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/30 flex items-center justify-center font-bold text-lg">
+          <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-300 border border-amber-400/30 flex items-center justify-center font-bold text-lg shrink-0">
             📜
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-extrabold text-sm sm:text-base text-white">
                 فحص وضبط أحكام التجويد المطبقة
               </h3>
-              <span className="text-[10px] font-bold bg-amber-400/20 text-amber-200 px-2.5 py-0.5 rounded-full border border-amber-400/30">
+              <span className="text-[10px] font-bold bg-amber-400/20 text-amber-200 px-2.5 py-0.5 rounded-full border border-amber-400/35">
                 تدقيق تجويدي آلي
               </span>
             </div>
@@ -50,19 +58,27 @@ export const TajweedBreakdownCard: React.FC<TajweedBreakdownCardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Tajweed Score */}
-          <div className="text-center px-3 py-1.5 rounded-xl bg-white/10 border border-white/20">
-            <span className="text-[10px] text-emerald-200 block font-semibold">درجة التجويد</span>
-            <span className="text-lg font-black text-amber-300 font-mono">
-              {report.overallTajweedScore.toFixed(1)} <span className="text-xs text-emerald-100">/ 10</span>
-            </span>
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+          {/* الأقسام الثلاثة للدرجات */}
+          <div className="flex items-center gap-1.5 bg-white/10 p-1.5 rounded-2xl border border-white/20">
+            <div className="text-center px-2 py-1 rounded-xl bg-emerald-950/40">
+              <span className="text-[9px] text-emerald-200 block font-bold">نطق الحروف</span>
+              <span className="text-xs font-black text-white font-mono">{letterScore} <span className="text-[9px] text-emerald-300">/5</span></span>
+            </div>
+            <div className="text-center px-2 py-1 rounded-xl bg-emerald-950/40">
+              <span className="text-[9px] text-emerald-200 block font-bold">التجويد</span>
+              <span className="text-xs font-black text-white font-mono">{tajweedScorePart} <span className="text-[9px] text-emerald-300">/5</span></span>
+            </div>
+            <div className="text-center px-2.5 py-1 rounded-xl bg-amber-500/30 border border-amber-400/40">
+              <span className="text-[9px] text-amber-200 block font-bold">المجموع</span>
+              <span className="text-sm font-black text-amber-300 font-mono">{totalScore} <span className="text-[9px] text-amber-200">/10</span></span>
+            </div>
           </div>
 
           {compact && (
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer shrink-0"
               title={isExpanded ? 'طي التفاصيل' : 'عرض التفاصيل'}
             >
               {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
