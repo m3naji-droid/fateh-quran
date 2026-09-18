@@ -66,11 +66,6 @@ export function subscribeToCloudData(callbacks: {
         localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(cloudClasses));
         callbacks.onClassesChange(cloudClasses);
       }
-    } else {
-      INITIAL_CLASSES.forEach(async (c) => {
-        try { await setDoc(doc(db, 'classes', c.id), { name: c.name, createdAt: c.createdAt }); } catch (e) {}
-      });
-      callbacks.onClassesChange(getClasses());
     }
   }, (err) => console.warn('Classes listener err:', err));
 
@@ -96,8 +91,8 @@ export function subscribeToCloudData(callbacks: {
     }
   }, (err) => console.warn('Assignments listener err:', err));
 
+  // مستمع الاستجابات مع دمج ذكي يمنع مسح الاستجابات المحلية
   const unsubSubmissions = onSnapshot(collection(db, 'submissions'), (snapshot) => {
-    if (snapshot.empty) return;
     const cloudSubmissions: Submission[] = [];
     snapshot.forEach((d) => {
       const data = d.data() as Omit<Submission, 'id'>;
@@ -124,10 +119,27 @@ export function subscribeToCloudData(callbacks: {
       });
     });
 
-    if (cloudSubmissions.length > 0) {
-      cloudSubmissions.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
-      localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(cloudSubmissions));
-      callbacks.onSubmissionsChange(cloudSubmissions);
+    // دمج السحابة مع المخزن المحلي لمنع ضياع أي استجابة محلية
+    const localSubs = getSubmissions();
+    const map = new Map<string, Submission>();
+    
+    // إضافة المحلية أولاً
+    localSubs.forEach(s => map.set(s.id, s));
+    // دمج وتحديث بيانات السحابة فوقها
+    cloudSubmissions.forEach(s => {
+      const existing = map.get(s.id);
+      map.set(s.id, {
+        ...s,
+        audioBase64: existing?.audioBase64 || ''
+      });
+    });
+
+    const merged = Array.from(map.values());
+    merged.sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
+
+    if (merged.length > 0) {
+      localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(merged));
+      callbacks.onSubmissionsChange(merged);
     }
   }, (err) => console.warn('Submissions listener err:', err));
 
@@ -145,7 +157,7 @@ export async function saveClass(name: string): Promise<ClassRoom> {
   const newClass: ClassRoom = { id, name: name.trim(), createdAt: new Date().toISOString() };
   classes.push(newClass);
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
-  try { await setDoc(doc(db, 'classes', id), { name: newClass.name, createdAt: newClass.createdAt }); } catch (err) {}
+  try { await setDoc(doc(db, 'classes', id), { name: newClass.name, createdAt: newClass.createdAt }); } catch (err) { console.error(err); }
   return newClass;
 }
 
@@ -155,14 +167,14 @@ export async function updateClass(classId: string, name: string): Promise<ClassR
   if (index === -1) return null;
   classes[index].name = name.trim();
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
-  try { await updateDoc(doc(db, 'classes', classId), { name: name.trim() }); } catch (err) {}
+  try { await updateDoc(doc(db, 'classes', classId), { name: name.trim() }); } catch (err) { console.error(err); }
   return classes[index];
 }
 
 export async function deleteClass(classId: string): Promise<void> {
   const classes = getClasses().filter((c) => c.id !== classId);
   localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
-  try { await deleteDoc(doc(db, 'classes', classId)); } catch (err) {}
+  try { await deleteDoc(doc(db, 'classes', classId)); } catch (err) { console.error(err); }
 }
 
 export async function saveStudent(student: Omit<Student, 'id' | 'createdAt'>): Promise<Student> {
@@ -178,7 +190,7 @@ export async function saveStudent(student: Omit<Student, 'id' | 'createdAt'>): P
       classId: newStudent.classId,
       createdAt: newStudent.createdAt,
     });
-  } catch (err) {}
+  } catch (err) { console.error(err); }
   return newStudent;
 }
 
@@ -190,7 +202,7 @@ export async function updateStudent(studentId: string, updates: { name?: string;
   if (updates.personalNumber !== undefined) students[index].personalNumber = updates.personalNumber.trim();
   if (updates.classId !== undefined) students[index].classId = updates.classId;
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
-  try { await updateDoc(doc(db, 'students', studentId), updates); } catch (err) {}
+  try { await updateDoc(doc(db, 'students', studentId), updates); } catch (err) { console.error(err); }
   return students[index];
 }
 
@@ -205,7 +217,7 @@ export async function saveBulkStudents(newStudents: Array<{ name: string; person
       const newStd: Student = { id, name: item.name.trim(), personalNumber: item.personalNumber.trim(), classId: item.classId, createdAt: new Date().toISOString() };
       students.push(newStd);
       addedCount++;
-      setDoc(doc(db, 'students', id), { name: newStd.name, personalNumber: newStd.personalNumber, classId: newStd.classId, createdAt: newStd.createdAt }).catch(() => {});
+      setDoc(doc(db, 'students', id), { name: newStd.name, personalNumber: newStd.personalNumber, classId: newStd.classId, createdAt: newStd.createdAt }).catch((err) => console.error(err));
     }
   }
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
@@ -215,7 +227,7 @@ export async function saveBulkStudents(newStudents: Array<{ name: string; person
 export async function deleteStudent(studentId: string): Promise<void> {
   const students = getStudents().filter((s) => s.id !== studentId);
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
-  try { await deleteDoc(doc(db, 'students', studentId)); } catch (err) {}
+  try { await deleteDoc(doc(db, 'students', studentId)); } catch (err) { console.error(err); }
 }
 
 export async function deleteStudentsInClass(classId: string): Promise<number> {
@@ -223,14 +235,14 @@ export async function deleteStudentsInClass(classId: string): Promise<number> {
   const toDelete = students.filter((s) => s.classId === classId);
   const remaining = students.filter((s) => s.classId !== classId);
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(remaining));
-  toDelete.forEach((std) => { deleteDoc(doc(db, 'students', std.id)).catch(() => {}); });
+  toDelete.forEach((std) => { deleteDoc(doc(db, 'students', std.id)).catch((err) => console.error(err)); });
   return toDelete.length;
 }
 
 export async function deleteAllStudents(): Promise<void> {
   const students = getStudents();
   localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
-  students.forEach((std) => { deleteDoc(doc(db, 'students', std.id)).catch(() => {}); });
+  students.forEach((std) => { deleteDoc(doc(db, 'students', std.id)).catch((err) => console.error(err)); });
 }
 
 export async function saveAssignment(assignment: Omit<Assignment, 'id' | 'createdAt'>): Promise<Assignment> {
@@ -239,7 +251,7 @@ export async function saveAssignment(assignment: Omit<Assignment, 'id' | 'create
   const newAssignment: Assignment = { ...assignment, id, createdAt: new Date().toISOString() };
   assignments.unshift(newAssignment);
   localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(assignments));
-  try { await setDoc(doc(db, 'assignments', id), newAssignment); } catch (err) {}
+  try { await setDoc(doc(db, 'assignments', id), newAssignment); } catch (err) { console.error(err); }
   return newAssignment;
 }
 
@@ -249,26 +261,26 @@ export async function updateAssignment(assignmentId: string, updates: Partial<Om
   if (index === -1) return null;
   assignments[index] = { ...assignments[index], ...updates };
   localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(assignments));
-  try { await updateDoc(doc(db, 'assignments', assignmentId), updates); } catch (err) {}
+  try { await updateDoc(doc(db, 'assignments', assignmentId), updates); } catch (err) { console.error(err); }
   return assignments[index];
 }
 
 export async function deleteAssignment(assignmentId: string): Promise<void> {
   const assignments = getAssignments().filter((a) => a.id !== assignmentId);
   localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify(assignments));
-  try { await deleteDoc(doc(db, 'assignments', assignmentId)); } catch (err) {}
+  try { await deleteDoc(doc(db, 'assignments', assignmentId)); } catch (err) { console.error(err); }
 }
 
 export async function deleteAllAssignments(): Promise<void> {
   const assignments = getAssignments();
   localStorage.setItem(STORAGE_KEYS.ASSIGNMENTS, JSON.stringify([]));
-  assignments.forEach((asg) => { deleteDoc(doc(db, 'assignments', asg.id)).catch(() => {}); });
+  assignments.forEach((asg) => { deleteDoc(doc(db, 'assignments', asg.id)).catch((err) => console.error(err)); });
 }
 
 export async function saveSubmission(submission: Omit<Submission, 'id' | 'submittedAt'>): Promise<Submission> {
   const submissions = getSubmissions();
   
-  // تصفية الاستجابات السابقة لنفس الطالب ونفس الواجب لتجنب أي تضارب قديم
+  // الحفاظ على الاستجابات الأخرى وتحديث استجابة نفس الطالب والواجب
   const filteredSubmissions = submissions.filter(
     (s) => !(s.studentId === submission.studentId && s.assignmentId === submission.assignmentId)
   );
@@ -314,9 +326,9 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
 
   try {
     await setDoc(doc(db, 'submissions', id), cloudSubmission);
-    console.log("تم إرسال الاستجابة الجديدة وتحديثها بنجاح!");
+    console.log("تم رفع الاستجابة للسحابة بنجاح تام!");
   } catch (err) {
-    console.warn('Cloud submission save warning:', err);
+    console.error("خطأ في رفع الاستجابة للسحابة:", err);
   }
 
   return newSubmission;
@@ -329,12 +341,12 @@ export async function updateSubmissionTeacherFeedback(submissionId: string, teac
     submissions[index].teacherGrade = teacherGrade;
     submissions[index].teacherNotes = teacherNotes;
     localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
-    try { await updateDoc(doc(db, 'submissions', submissionId), { teacherGrade, teacherNotes }); } catch (err) {}
+    try { await updateDoc(doc(db, 'submissions', submissionId), { teacherGrade, teacherNotes }); } catch (err) { console.error(err); }
   }
 }
 
 export async function deleteSubmission(submissionId: string): Promise<void> {
   const submissions = getSubmissions().filter((s) => s.id !== submissionId);
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
-  try { await deleteDoc(doc(db, 'submissions', submissionId)); } catch (err) {}
+  try { await deleteDoc(doc(db, 'submissions', submissionId)); } catch (err) { console.error(err); }
 }
