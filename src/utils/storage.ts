@@ -120,7 +120,7 @@ export function subscribeToCloudData(callbacks: {
         teacherGrade: data.teacherGrade !== undefined ? data.teacherGrade : null,
         teacherNotes: data.teacherNotes || '',
         wordEvaluations: data.wordEvaluations || [],
-        audioBase64: '', // ترك الملف الصوتي فارغاً للمزامنة السريعة والخفيفة
+        audioBase64: '',
       });
     });
 
@@ -267,6 +267,12 @@ export async function deleteAllAssignments(): Promise<void> {
 
 export async function saveSubmission(submission: Omit<Submission, 'id' | 'submittedAt'>): Promise<Submission> {
   const submissions = getSubmissions();
+  
+  // تصفية الاستجابات السابقة لنفس الطالب ونفس الواجب لتجنب أي تضارب قديم
+  const filteredSubmissions = submissions.filter(
+    (s) => !(s.studentId === submission.studentId && s.assignmentId === submission.assignmentId)
+  );
+
   const id = `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
   const newSubmission: Submission = {
@@ -275,13 +281,12 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
     submittedAt: new Date().toISOString(),
     teacherGrade: submission.teacherGrade ?? null,
     teacherNotes: submission.teacherNotes || '',
-    audioBase64: '', // عدم تخزين الصوت الثقيل محلياً بشكل ضخم أيضاً لتخفيف الذاكرة
+    audioBase64: '', 
   };
 
-  submissions.unshift(newSubmission);
-  localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(submissions));
+  filteredSubmissions.unshift(newSubmission);
+  localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(filteredSubmissions));
 
-  // إرسال البيانات الأساسية والدرجات والتقارير فقط للسحابة لضمان المزامنة الفورية اللحظية
   const cloudSubmission: Record<string, any> = {
     id: newSubmission.id,
     assignmentId: newSubmission.assignmentId,
@@ -300,7 +305,7 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
     teacherGrade: newSubmission.teacherGrade,
     teacherNotes: newSubmission.teacherNotes,
     wordEvaluations: newSubmission.wordEvaluations || [],
-    audioBase64: '', // إرسال فارغ لضمان السرعة ومنع حظر الحجم
+    audioBase64: '',
   };
 
   if (newSubmission.tajweedReport) {
@@ -309,7 +314,7 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
 
   try {
     await setDoc(doc(db, 'submissions', id), cloudSubmission);
-    console.log("تم مزامنة نتيجة التلاوة والدرجات بنجاح تام!");
+    console.log("تم إرسال الاستجابة الجديدة وتحديثها بنجاح!");
   } catch (err) {
     console.warn('Cloud submission save warning:', err);
   }
