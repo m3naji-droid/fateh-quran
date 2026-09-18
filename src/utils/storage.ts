@@ -91,7 +91,6 @@ export function subscribeToCloudData(callbacks: {
     }
   }, (err) => console.warn('Assignments listener err:', err));
 
-  // مستمع الاستجابات مع دمج ذكي يمنع مسح الاستجابات المحلية
   const unsubSubmissions = onSnapshot(collection(db, 'submissions'), (snapshot) => {
     const cloudSubmissions: Submission[] = [];
     snapshot.forEach((d) => {
@@ -119,13 +118,10 @@ export function subscribeToCloudData(callbacks: {
       });
     });
 
-    // دمج السحابة مع المخزن المحلي لمنع ضياع أي استجابة محلية
     const localSubs = getSubmissions();
     const map = new Map<string, Submission>();
     
-    // إضافة المحلية أولاً
     localSubs.forEach(s => map.set(s.id, s));
-    // دمج وتحديث بيانات السحابة فوقها
     cloudSubmissions.forEach(s => {
       const existing = map.get(s.id);
       map.set(s.id, {
@@ -280,7 +276,6 @@ export async function deleteAllAssignments(): Promise<void> {
 export async function saveSubmission(submission: Omit<Submission, 'id' | 'submittedAt'>): Promise<Submission> {
   const submissions = getSubmissions();
   
-  // الحفاظ على الاستجابات الأخرى وتحديث استجابة نفس الطالب والواجب
   const filteredSubmissions = submissions.filter(
     (s) => !(s.studentId === submission.studentId && s.assignmentId === submission.assignmentId)
   );
@@ -297,6 +292,8 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
   };
 
   filteredSubmissions.unshift(newSubmission);
+  
+  // تحديث الذاكرة المحلية فوراً ليكون التطبيق جاهزاً من الضغطة الأولى
   localStorage.setItem(STORAGE_KEYS.SUBMISSIONS, JSON.stringify(filteredSubmissions));
 
   const cloudSubmission: Record<string, any> = {
@@ -326,7 +323,7 @@ export async function saveSubmission(submission: Omit<Submission, 'id' | 'submit
 
   try {
     await setDoc(doc(db, 'submissions', id), cloudSubmission);
-    console.log("تم رفع الاستجابة للسحابة بنجاح تام!");
+    console.log("تم إرسال وحفظ الاستجابة من المرة الأولى بنجاح!");
   } catch (err) {
     console.error("خطأ في رفع الاستجابة للسحابة:", err);
   }
