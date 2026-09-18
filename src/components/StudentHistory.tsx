@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Award, Calendar, CheckCircle2, Clock, Sparkles, TrendingUp, Eye } from 'lucide-react';
+import { Award, Calendar, CheckCircle2, Clock, Sparkles, TrendingUp, Volume2, Eye } from 'lucide-react';
 import { Submission } from '../types';
 import { AudioPlayer } from './AudioPlayer';
 import { EvaluationModal } from './EvaluationModal';
@@ -25,22 +25,11 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
     );
   }
 
-  // Calculate statistics based on dual grading system (out of 10)
+  // Calculate statistics
   const totalSubmissions = submissions.length;
-  
-  // حساب متوسط درجات نطق الحروف والتجويد والكلية
-  const avgLetterScore = (submissions.reduce((acc, curr) => {
-    const lScore = curr.letterPronunciationScore !== undefined ? curr.letterPronunciationScore : (curr.aiScore / 2);
-    return acc + lScore;
-  }, 0) / totalSubmissions).toFixed(1);
-
-  const avgTajweedScore = (submissions.reduce((acc, curr) => {
-    const tScore = curr.tajweedScore !== undefined ? curr.tajweedScore : (curr.aiScore / 2);
-    return acc + tScore;
-  }, 0) / totalSubmissions).toFixed(1);
-
-  const avgTotalScore = (parseFloat(avgLetterScore) + parseFloat(avgTajweedScore)).toFixed(1);
+  const avgAiScore = (submissions.reduce((acc, curr) => acc + curr.aiScore, 0) / totalSubmissions).toFixed(1);
   const avgAccuracy = Math.round(submissions.reduce((acc, curr) => acc + curr.accuracyPercentage, 0) / totalSubmissions);
+  const highestScore = Math.max(...submissions.map(s => s.teacherGrade !== null ? s.teacherGrade : s.aiScore)).toFixed(1);
 
   // Sort chronological for chart
   const chronologicalSubmissions = [...submissions].sort(
@@ -77,25 +66,25 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
 
         <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-stone-600">متوسط نطق الحروف</span>
+            <span className="text-xs font-bold text-stone-600">معدل التقييم الآلي</span>
             <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-amber-700 font-mono">
-            {avgLetterScore} <span className="text-xs font-normal text-stone-400">/ 5</span>
+            {avgAiScore} <span className="text-xs font-normal text-stone-400">/ 10</span>
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-stone-600">متوسط الدرجة الكلية</span>
+            <span className="text-xs font-bold text-stone-600">أعلى درجة محققة</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
               <Award className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl sm:text-3xl font-black text-emerald-700 font-mono">
-            {avgTotalScore} <span className="text-xs font-normal text-stone-400">/ 10</span>
+            {highestScore} <span className="text-xs font-normal text-stone-400">/ 10</span>
           </div>
         </div>
       </div>
@@ -108,8 +97,8 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
               <TrendingUp className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-stone-900">رسم بياني يوضح تقدم الدرجة الكلية</h3>
-              <p className="text-[11px] text-stone-500">متابعة التطور في مجموع درجات التلاوة (من 10) عبر الواجبات المتتالية</p>
+              <h3 className="text-sm font-bold text-stone-900">رسم بياني يوضح تقدم المستوى والدرجات</h3>
+              <p className="text-[11px] text-stone-500">متابعة التطور في دقة التلاوة عبر الواجبات المتتالية</p>
             </div>
           </div>
         </div>
@@ -118,25 +107,23 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
         <div className="pt-4 pb-2">
           <div className="h-44 flex items-end gap-2 sm:gap-4 border-b border-stone-200 px-2">
             {chronologicalSubmissions.map((sub, index) => {
-              const letterScore = sub.letterPronunciationScore !== undefined ? sub.letterPronunciationScore : (sub.aiScore / 2);
-              const tajScore = sub.tajweedScore !== undefined ? sub.tajweedScore : (sub.aiScore / 2);
-              const effectiveTotal = sub.teacherGrade !== null && sub.teacherGrade !== undefined ? sub.teacherGrade : (letterScore + tajScore);
-              const heightPercent = Math.max(15, Math.min(100, (effectiveTotal / 10) * 100));
+              const effectiveScore = sub.teacherGrade !== null ? sub.teacherGrade : sub.aiScore;
+              const heightPercent = Math.max(15, Math.min(100, (effectiveScore / 10) * 100));
 
               return (
                 <div key={sub.id} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group relative">
                   {/* Tooltip on hover */}
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-12 bg-stone-900 text-white text-[10px] py-1 px-2 rounded-md whitespace-nowrap z-20 pointer-events-none shadow-md">
-                    {sub.assignmentTitle}: الكلية {effectiveTotal} / 10 (حروف: {letterScore} - تجويد: {tajScore})
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-10 bg-stone-900 text-white text-[10px] py-1 px-2 rounded-md whitespace-nowrap z-20 pointer-events-none shadow-md">
+                    {sub.assignmentTitle}: {effectiveScore} / 10 ({sub.accuracyPercentage}%)
                   </div>
 
                   {/* Bar */}
                   <div className="w-full max-w-[42px] bg-stone-100 rounded-t-xl overflow-hidden h-full flex items-end">
                     <div
                       className={`w-full rounded-t-xl transition-all duration-500 ${
-                        effectiveTotal >= 9
+                        effectiveScore >= 9
                           ? 'bg-linear-to-t from-emerald-700 to-emerald-500'
-                          : effectiveTotal >= 7.5
+                          : effectiveScore >= 7.5
                           ? 'bg-linear-to-t from-teal-600 to-emerald-400'
                           : 'bg-linear-to-t from-amber-600 to-amber-400'
                       }`}
@@ -146,7 +133,7 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
 
                   {/* Grade label */}
                   <span className="text-[11px] font-bold font-mono text-stone-800">
-                    {effectiveTotal}
+                    {effectiveScore}
                   </span>
 
                   {/* Sequence label */}
@@ -163,92 +150,89 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
       {/* Detailed Submissions History Table / Cards */}
       <div className="bg-white rounded-3xl border border-stone-200 shadow-xs overflow-hidden">
         <div className="p-5 border-b border-stone-100 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-stone-900">سجل التلاوات السابقة وتقييمات الفئات</h3>
+          <h3 className="text-sm font-bold text-stone-900">سجل التلاوات السابقة</h3>
           <span className="text-xs text-stone-500">{submissions.length} تسجيل</span>
         </div>
 
         <div className="divide-y divide-stone-100">
-          {submissions.map((sub) => {
-            const letterScore = sub.letterPronunciationScore !== undefined ? sub.letterPronunciationScore : (sub.aiScore / 2);
-            const tajScore = sub.tajweedScore !== undefined ? sub.tajweedScore : (sub.aiScore / 2);
-            const totalScoreVal = Number(letterScore) + Number(tajScore);
-            const finalDisplayGrade = sub.teacherGrade !== null && sub.teacherGrade !== undefined ? sub.teacherGrade : totalScoreVal;
-
-            return (
-              <div key={sub.id} className="p-5 hover:bg-stone-50/70 transition-colors">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-stone-900">{sub.assignmentTitle}</span>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">
-                        سورة يس
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-xs text-stone-500">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {new Date(sub.submittedAt).toLocaleDateString('ar-SA', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </span>
-                      <span>•</span>
-                      <span>المدة: {sub.durationSeconds} ثانية</span>
-                    </div>
-
-                    {/* Teacher Feedback / Notes if provided */}
-                    {sub.teacherNotes && (
-                      <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200/80 text-xs text-amber-900 mt-2">
-                        <span className="font-bold block mb-0.5">ملاحظات وتوجيهات المعلم:</span>
-                        <span>{sub.teacherNotes}</span>
-                      </div>
-                    )}
+          {submissions.map((sub) => (
+            <div key={sub.id} className="p-5 hover:bg-stone-50/70 transition-colors">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-stone-900">{sub.assignmentTitle}</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">
+                      سورة يس
+                    </span>
                   </div>
 
-                  {/* Right side: Audio Player & Divided Scores */}
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    {/* Audio Player */}
-                    <div className="w-full sm:w-auto">
-                      <AudioPlayer audioSrc={sub.audioBase64} compact />
-                    </div>
-
-                    {/* Letter Pronunciation Score Badge (out of 5) */}
-                    <div className="text-center bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-200">
-                      <span className="text-[10px] text-stone-500 block font-bold">نطق الحروف</span>
-                      <span className="text-xs font-black font-mono text-stone-900">{letterScore} <span className="text-[10px] font-normal text-stone-400">/ 5</span></span>
-                    </div>
-
-                    {/* Tajweed Score Badge (out of 5) */}
-                    <div className="text-center bg-teal-50 px-3 py-1.5 rounded-xl border border-teal-200">
-                      <span className="text-[10px] text-teal-700 block font-bold">التجويد</span>
-                      <span className="text-xs font-black font-mono text-teal-800">
-                        {tajScore} <span className="text-[10px] font-normal text-teal-500">/ 5</span>
-                      </span>
-                    </div>
-
-                    {/* Total Grade Badge (out of 10) */}
-                    <div className="text-center bg-emerald-50 px-3.5 py-1.5 rounded-xl border border-emerald-300">
-                      <span className="text-[10px] text-emerald-800 block font-bold">الدرجة الكلية</span>
-                      <span className="text-xs font-black font-mono text-emerald-950">
-                        {finalDisplayGrade} <span className="text-[10px] font-normal text-emerald-600">/ 10</span>
-                      </span>
-                    </div>
-
-                    {/* View Details Button */}
-                    <button
-                      onClick={() => setSelectedSubmission(sub)}
-                      className="p-2 text-stone-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-xl border border-stone-200 transition-colors cursor-pointer"
-                      title="عرض تقرير التصحيح المفصل"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
+                  <div className="flex items-center gap-3 text-xs text-stone-500">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3.5 h-3.5" />
+                      {new Date(sub.submittedAt).toLocaleDateString('ar-SA', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </span>
+                    <span>•</span>
+                    <span>المدة: {sub.durationSeconds} ثانية</span>
                   </div>
+
+                  {/* Teacher Feedback / Notes if provided */}
+                  {sub.teacherNotes && (
+                    <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200/80 text-xs text-amber-900 mt-2">
+                      <span className="font-bold block mb-0.5">ملاحظات وتوجيهات المعلم:</span>
+                      <span>{sub.teacherNotes}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right side: Audio Player & Scores */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Audio Player */}
+                  <div className="w-full sm:w-auto">
+                    <AudioPlayer audioSrc={sub.audioBase64} compact />
+                  </div>
+
+                  {/* AI Score Badge */}
+                  <div className="text-center bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-200">
+                    <span className="text-[10px] text-stone-500 block">التقييم العام</span>
+                    <span className="text-xs font-black font-mono text-emerald-800">{sub.aiScore} / 10</span>
+                  </div>
+
+                  {/* Tajweed Score Badge */}
+                  <div className="text-center bg-teal-50 px-3 py-1.5 rounded-xl border border-teal-200">
+                    <span className="text-[10px] text-teal-700 block font-bold">التجويد</span>
+                    <span className="text-xs font-black font-mono text-teal-800">
+                      {sub.tajweedScore !== undefined ? sub.tajweedScore : sub.aiScore} / 10
+                    </span>
+                  </div>
+
+                  {/* Teacher Grade Badge */}
+                  <div className={`text-center px-3 py-1.5 rounded-xl border ${
+                    sub.teacherGrade !== null
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                      : 'bg-stone-50 border-stone-200 text-stone-400'
+                  }`}>
+                    <span className="text-[10px] block">درجة المعلم</span>
+                    <span className="text-xs font-black font-mono">
+                      {sub.teacherGrade !== null ? `${sub.teacherGrade} / 10` : 'قيد التدقيق'}
+                    </span>
+                  </div>
+
+                  {/* View Details Button */}
+                  <button
+                    onClick={() => setSelectedSubmission(sub)}
+                    className="p-2 text-stone-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-xl border border-stone-200 transition-colors cursor-pointer"
+                    title="عرض تقرير التصحيح المفصل"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
 
