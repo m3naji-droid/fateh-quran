@@ -25,11 +25,31 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
     );
   }
 
-  // Calculate statistics
+  // Calculate statistics (درجات نطق الحروف كمتوسط مفترض أو معتمد على aiScore/2 كمثال، وتعديل الحسابات بناءً على نظام الـ 5 والـ 10)
   const totalSubmissions = submissions.length;
-  const avgAiScore = (submissions.reduce((acc, curr) => acc + curr.aiScore, 0) / totalSubmissions).toFixed(1);
+  
+  // حساب متوسط درجات نطق الحروف (من 5)
+  const avgPronunciation = (submissions.reduce((acc, curr) => {
+    const pron = (curr as any).pronunciationScore !== undefined ? (curr as any).pronunciationScore : (curr.aiScore / 2);
+    return acc + pron;
+  }, 0) / totalSubmissions).toFixed(1);
+
+  // حساب متوسط درجات التجويد (من 5)
+  const avgTajweed = (submissions.reduce((acc, curr) => {
+    const taj = curr.tajweedScore !== undefined ? curr.tajweedScore : (curr.aiScore / 2);
+    return acc + taj;
+  }, 0) / totalSubmissions).toFixed(1);
+
+  // حساب متوسط المجموع الكلي (من 10)
+  const avgTotalScore = (Number(avgPronunciation) + Number(avgTajweed)).toFixed(1);
+
   const avgAccuracy = Math.round(submissions.reduce((acc, curr) => acc + curr.accuracyPercentage, 0) / totalSubmissions);
-  const highestScore = Math.max(...submissions.map(s => s.teacherGrade !== null ? s.teacherGrade : s.aiScore)).toFixed(1);
+  
+  // أعلى درجة محققة من 10
+  const highestScore = Math.max(...submissions.map(s => {
+    const grade = s.teacherGrade !== null ? s.teacherGrade : s.aiScore;
+    return grade;
+  })).toFixed(1);
 
   // Sort chronological for chart
   const chronologicalSubmissions = [...submissions].sort(
@@ -54,37 +74,37 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
 
         <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-stone-600">متوسط الدقة</span>
+            <span className="text-xs font-bold text-stone-600">متوسط نطق الحروف</span>
             <div className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-teal-800 font-mono">
-            {avgAccuracy}%
+          <div className="text-xl sm:text-2xl font-black text-teal-800 font-mono">
+            {avgPronunciation} <span className="text-xs font-normal text-stone-400">/ 5</span>
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-stone-600">معدل التقييم الآلي</span>
+            <span className="text-xs font-bold text-stone-600">متوسط التجويد</span>
             <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-amber-700 font-mono">
-            {avgAiScore} <span className="text-xs font-normal text-stone-400">/ 10</span>
+          <div className="text-xl sm:text-2xl font-black text-amber-700 font-mono">
+            {avgTajweed} <span className="text-xs font-normal text-stone-400">/ 5</span>
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-stone-600">أعلى درجة محققة</span>
+            <span className="text-xs font-bold text-stone-600">المجموع الكلي للتقييم</span>
             <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
               <Award className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-emerald-700 font-mono">
-            {highestScore} <span className="text-xs font-normal text-stone-400">/ 10</span>
+          <div className="text-xl sm:text-2xl font-black text-emerald-700 font-mono">
+            {avgTotalScore} <span className="text-xs font-normal text-stone-400">/ 10</span>
           </div>
         </div>
       </div>
@@ -98,7 +118,7 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
             </div>
             <div>
               <h3 className="text-sm font-bold text-stone-900">رسم بياني يوضح تقدم المستوى والدرجات</h3>
-              <p className="text-[11px] text-stone-500">متابعة التطور في دقة التلاوة عبر الواجبات المتتالية</p>
+              <p className="text-[11px] text-stone-500">متابعة التطور في درجات التلاوة الكلية (من 10) عبر الواجبات المتتالية</p>
             </div>
           </div>
         </div>
@@ -155,84 +175,100 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
         </div>
 
         <div className="divide-y divide-stone-100">
-          {submissions.map((sub) => (
-            <div key={sub.id} className="p-5 hover:bg-stone-50/70 transition-colors">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-stone-900">{sub.assignmentTitle}</span>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">
-                      سورة يس
-                    </span>
-                  </div>
+          {submissions.map((sub) => {
+            // استخراج وتوزيع درجات نطق الحروف والتجويد والمجموع
+            const pronunciation = (sub as any).pronunciationScore !== undefined ? (sub as any).pronunciationScore : Number((sub.aiScore / 2).toFixed(1));
+            const tajweed = sub.tajweedScore !== undefined ? sub.tajweedScore : Number((sub.aiScore / 2).toFixed(1));
+            const total = Number((pronunciation + tajweed).toFixed(1));
+            const finalDisplayGrade = sub.teacherGrade !== null ? sub.teacherGrade : total;
 
-                  <div className="flex items-center gap-3 text-xs text-stone-500">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {new Date(sub.submittedAt).toLocaleDateString('ar-SA', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </span>
-                    <span>•</span>
-                    <span>المدة: {sub.durationSeconds} ثانية</span>
-                  </div>
-
-                  {/* Teacher Feedback / Notes if provided */}
-                  {sub.teacherNotes && (
-                    <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200/80 text-xs text-amber-900 mt-2">
-                      <span className="font-bold block mb-0.5">ملاحظات وتوجيهات المعلم:</span>
-                      <span>{sub.teacherNotes}</span>
+            return (
+              <div key={sub.id} className="p-5 hover:bg-stone-50/70 transition-colors">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-stone-900">{sub.assignmentTitle}</span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold">
+                        سورة يس
+                      </span>
                     </div>
-                  )}
-                </div>
 
-                {/* Right side: Audio Player & Scores */}
-                <div className="flex flex-wrap items-center gap-3">
-                  {/* Audio Player */}
-                  <div className="w-full sm:w-auto">
-                    <AudioPlayer audioSrc={sub.audioBase64} compact />
+                    <div className="flex items-center gap-3 text-xs text-stone-500">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {new Date(sub.submittedAt).toLocaleDateString('ar-SA', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </span>
+                      <span>•</span>
+                      <span>المدة: {sub.durationSeconds} ثانية</span>
+                    </div>
+
+                    {/* Teacher Feedback / Notes if provided */}
+                    {sub.teacherNotes && (
+                      <div className="p-2.5 bg-amber-50/80 rounded-xl border border-amber-200/80 text-xs text-amber-900 mt-2">
+                        <span className="font-bold block mb-0.5">ملاحظات وتوجيهات المعلم:</span>
+                        <span>{sub.teacherNotes}</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* AI Score Badge */}
-                  <div className="text-center bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-200">
-                    <span className="text-[10px] text-stone-500 block">التقييم العام</span>
-                    <span className="text-xs font-black font-mono text-emerald-800">{sub.aiScore} / 10</span>
-                  </div>
+                  {/* Right side: Audio Player & Scores Split (Pronunciation /5, Tajweed /5, Total /10) */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {/* Audio Player */}
+                    <div className="w-full sm:w-auto">
+                      <AudioPlayer audioSrc={sub.audioBase64} compact />
+                    </div>
 
-                  {/* Tajweed Score Badge */}
-                  <div className="text-center bg-teal-50 px-3 py-1.5 rounded-xl border border-teal-200">
-                    <span className="text-[10px] text-teal-700 block font-bold">التجويد</span>
-                    <span className="text-xs font-black font-mono text-teal-800">
-                      {sub.tajweedScore !== undefined ? sub.tajweedScore : sub.aiScore} / 10
-                    </span>
-                  </div>
+                    {/* 1. نطق الحروف من 5 */}
+                    <div className="text-center bg-stone-50 px-2.5 py-1.5 rounded-xl border border-stone-200">
+                      <span className="text-[9px] text-stone-500 block font-semibold">نطق الحروف</span>
+                      <span className="text-xs font-black font-mono text-stone-800">{pronunciation} <span className="text-[9px] text-stone-400">/5</span></span>
+                    </div>
 
-                  {/* Teacher Grade Badge */}
-                  <div className={`text-center px-3 py-1.5 rounded-xl border ${
-                    sub.teacherGrade !== null
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-                      : 'bg-stone-50 border-stone-200 text-stone-400'
-                  }`}>
-                    <span className="text-[10px] block">درجة المعلم</span>
-                    <span className="text-xs font-black font-mono">
-                      {sub.teacherGrade !== null ? `${sub.teacherGrade} / 10` : 'قيد التدقيق'}
-                    </span>
-                  </div>
+                    {/* 2. أحكام التجويد من 5 */}
+                    <div className="text-center bg-teal-50 px-2.5 py-1.5 rounded-xl border border-teal-200">
+                      <span className="text-[9px] text-teal-700 block font-bold">التجويد</span>
+                      <span className="text-xs font-black font-mono text-teal-800">
+                        {tajweed} <span className="text-[9px] text-teal-600">/5</span>
+                      </span>
+                    </div>
 
-                  {/* View Details Button */}
-                  <button
-                    onClick={() => setSelectedSubmission(sub)}
-                    className="p-2 text-stone-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-xl border border-stone-200 transition-colors cursor-pointer"
-                    title="عرض تقرير التصحيح المفصل"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
+                    {/* 3. المجموع الكلي من 10 */}
+                    <div className="text-center bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-300">
+                      <span className="text-[9px] text-emerald-800 block font-bold">المجموع الكلي</span>
+                      <span className="text-xs font-black font-mono text-emerald-950">
+                        {finalDisplayGrade} <span className="text-[9px] text-emerald-700">/10</span>
+                      </span>
+                    </div>
+
+                    {/* Teacher Grade Status Badge */}
+                    <div className={`text-center px-2.5 py-1.5 rounded-xl border ${
+                      sub.teacherGrade !== null
+                        ? 'bg-emerald-700 text-white border-emerald-800'
+                        : 'bg-stone-100 border-stone-200 text-stone-500'
+                    }`}>
+                      <span className="text-[9px] block">الحالة</span>
+                      <span className="text-[10px] font-bold">
+                        {sub.teacherGrade !== null ? 'معتمد' : 'قيد التدقيق'}
+                      </span>
+                    </div>
+
+                    {/* View Details Button */}
+                    <button
+                      onClick={() => setSelectedSubmission(sub)}
+                      className="p-2 text-stone-600 hover:text-emerald-800 hover:bg-emerald-50 rounded-xl border border-stone-200 transition-colors cursor-pointer"
+                      title="عرض تقرير التصحيح المفصل"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
