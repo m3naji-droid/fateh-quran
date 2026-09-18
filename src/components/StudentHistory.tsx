@@ -120,7 +120,7 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
             {chronologicalSubmissions.map((sub, index) => {
               const letterScore = sub.letterPronunciationScore !== undefined ? sub.letterPronunciationScore : (sub.aiScore / 2);
               const tajScore = sub.tajweedScore !== undefined ? sub.tajweedScore : (sub.aiScore / 2);
-              const effectiveTotal = sub.teacherGrade !== null ? sub.teacherGrade : (letterScore + tajScore);
+              const effectiveTotal = sub.teacherGrade !== null && sub.teacherGrade !== undefined ? sub.teacherGrade : (letterScore + tajScore);
               const heightPercent = Math.max(15, Math.min(100, (effectiveTotal / 10) * 100));
 
               return (
@@ -172,6 +172,7 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
             const letterScore = sub.letterPronunciationScore !== undefined ? sub.letterPronunciationScore : (sub.aiScore / 2);
             const tajScore = sub.tajweedScore !== undefined ? sub.tajweedScore : (sub.aiScore / 2);
             const totalScoreVal = Number(letterScore) + Number(tajScore);
+            const finalDisplayGrade = sub.teacherGrade !== null && sub.teacherGrade !== undefined ? sub.teacherGrade : totalScoreVal;
 
             return (
               <div key={sub.id} className="p-5 hover:bg-stone-50/70 transition-colors">
@@ -231,7 +232,7 @@ export const StudentHistory: React.FC<StudentHistoryProps> = ({ submissions }) =
                     <div className="text-center bg-emerald-50 px-3.5 py-1.5 rounded-xl border border-emerald-300">
                       <span className="text-[10px] text-emerald-800 block font-bold">الدرجة الكلية</span>
                       <span className="text-xs font-black font-mono text-emerald-950">
-                        {sub.teacherGrade !== null ? sub.teacherGrade : totalScoreVal} <span className="text-[10px] font-normal text-emerald-600">/ 10</span>
+                        {finalDisplayGrade} <span className="text-[10px] font-normal text-emerald-600">/ 10</span>
                       </span>
                     </div>
 
