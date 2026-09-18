@@ -38,6 +38,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [currentEvaluation, setCurrentEvaluation] = useState<EvaluationResult | null>(null);
   const [submittedAudioBase64, setSubmittedAudioBase64] = useState<string>('');
+  const [submittedDuration, setSubmittedDuration] = useState<number>(0); // 👈 المدة الفعلية المُصححة دون تغيير بنية البيانات
   const [showEvaluationModal, setShowEvaluationModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -45,12 +46,11 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
   const classAssignments = assignments.filter((a) => a.classId === student.classId || a.classId === 'all');
   const currentAssignment = classAssignments.find((a) => a.id === selectedAssignmentId) || classAssignments[0];
 
-  // دمج قوي جداً بين البروبس والتخزين المحلي لضمان عدم ضياع أو اختفاء أي استجابة عند التحديث (F5)
+  // دمج قوي لضمان عدم ضياع التلاوات عند التحديث (F5)
   const allCurrentSubmissions = React.useMemo(() => {
     const local = getSubmissions();
     const mergedMap = new Map<string, Submission>();
-    // دمج البيانات لضمان شموليتها
-     [...(submissions || []), ...local].forEach((sub) => {
+    [...(submissions || []), ...local].forEach((sub) => {
       if (sub && sub.id) {
         mergedMap.set(sub.id, sub);
       }
@@ -61,7 +61,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
   // استخراج تلاوات الطالب الحالي فقط
   const mySubmissions = allCurrentSubmissions.filter((s) => s.studentId === student.id);
   
-  // البحث عن وجود تسليم للواجب الحالي بطريقة مطابقة مرنة (بالـ ID أو رقم الآيات)
+  // البحث عن وجود تسليم للواجب الحالي بطريقة مطابقة مرنة
   const existingSubmission = currentAssignment 
     ? mySubmissions.find((s) => 
         s.assignmentId === currentAssignment.id || 
@@ -74,7 +74,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
     ? getVerseRangeText(currentAssignment.startAyah, currentAssignment.endAyah)
     : [];
 
-  // تعديل الدالة لتقوم بالتقييم والمعاينة فقط دون الحفظ التلقائي
+  // دالة التقاط التسجيل والتقييم المحلي دون المساس بطريقة الهيكل الأساسي للبيانات
   const handleRecitationCompleted = async (
     audioBase64: string,
     durationSeconds: number,
@@ -84,6 +84,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
 
     setIsEvaluating(true);
     setSubmittedAudioBase64(audioBase64);
+    setSubmittedDuration(durationSeconds); // 👈 حفظ المدة الزمنية الحقيقية
 
     try {
       await new Promise((res) => setTimeout(res, 800));
@@ -95,9 +96,8 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
         durationSeconds
       );
 
-      // تخزين النتيجة مؤقتاً في الـ State لعرضها في نافذة المعاينة والتقييم
       setCurrentEvaluation(evalResult);
-      setShowEvaluationModal(true); // إظهار النافذة ليراجعها الطالب ويضغط على زر الإرسال بنفسه
+      setShowEvaluationModal(true);
       
     } catch (err) {
       console.error('Submission evaluation error:', err);
@@ -106,22 +106,21 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
     }
   };
 
-  // دالة حذف التسجيل الحالي للسماح للطالب بإعادة التسجيل
+  // دالة حذف التسجيل الحالي لإعادة التسجيل
   const handleDeleteSubmission = async () => {
     if (!existingSubmission) return;
     if (!window.confirm("هل أنت متأكد من رغبتك في حذف هذا التسجيل وإعادة التلاوة من جديد؟")) return;
 
     setIsDeleting(true);
     try {
-      // حذف التسجيل من التخزين المحلي
       const localSubs = getSubmissions();
       const updatedLocal = localSubs.filter((s) => s.id !== existingSubmission.id);
       localStorage.setItem('quran_submissions', JSON.stringify(updatedLocal));
 
-      // تحديث الواجهة
       onSubmissionsUpdated();
       setCurrentEvaluation(null);
       setSubmittedAudioBase64('');
+      setSubmittedDuration(0);
     } catch (err) {
       console.error('Failed to delete submission:', err);
     } finally {
@@ -462,7 +461,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
         <SurahYasinView />
       )}
 
-      {/* نافذة المعاينة والتقييم التي تحتوي على زر الإرسال اليدوي */}
+      {/* نافذة المعاينة والتقييم مع الحفاظ الدقيق على بنية بيانات الإرسال */}
       {currentEvaluation && (
         <EvaluationModal
           isOpen={showEvaluationModal}
@@ -477,7 +476,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
           onGoToHistory={() => setActiveTab('my-history')}
           onConfirmSend={async () => {
             if (!currentAssignment) return;
-            // يتم الحفظ والإرسال فقط عند ضغط الطالب على زر الإرسال داخل النافذة
+            
             await saveSubmission({
               studentId: student.id,
               studentName: student.name,
@@ -487,7 +486,7 @@ export const StudentInterface: React.FC<StudentInterfaceProps> = ({
               assignmentId: currentAssignment.id,
               assignmentTitle: currentAssignment.title,
               audioBase64: submittedAudioBase64,
-              durationSeconds: currentEvaluation.correctCount || 5,
+              durationSeconds: submittedDuration > 0 ? submittedDuration : (currentEvaluation.correctCount || 5), // 👈 استخدام المدة الزمنية الحقيقية مع ضمان استمرار التوافق
               transcribedText: currentEvaluation.transcribedText,
               accuracyPercentage: currentEvaluation.accuracyPercentage,
               aiScore: currentEvaluation.aiScore,
