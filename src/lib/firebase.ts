@@ -21,23 +21,23 @@ const firebaseConfig = {
   projectId: "grounded-technique-rgmzr",
   storageBucket: "grounded-technique-rgmzr.firebasestorage.app",
   messagingSenderId: "944676198315",
-  appId: "1:944676198315:web:5bf9874602742ff930a4ee"
+  appId: "1:944676198315:web:5bf9874602742ff930a4ee",
+  // معرّف قاعدة البيانات المخصص لتوحيد الاتصال بين الجهازين
+  firestoreDatabaseId: "ai-studio-420cd5a9-10ed-4e84-97e9-7649c7b7816a"
 };
 
 const app = initializeApp(firebaseConfig);
 
-export const db = getFirestore(app);
+// الاتصال بقاعدة البيانات المحددة بدقة
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
-
-console.log("Firebase initialized successfully for project:", firebaseConfig.projectId);
 
 export async function loginWithGoogle() {
   const provider = new GoogleAuthProvider();
   try {
     await signInWithPopup(auth, provider);
-    console.log("Google Login Success");
   } catch (err) {
-    console.error("Google Login Error:", err);
+    console.error("خطأ في تسجيل الدخول:", err);
   }
 }
 
