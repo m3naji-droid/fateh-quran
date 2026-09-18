@@ -59,6 +59,11 @@ export const TeacherDashboard = () => {
   const [asgInstructions, setAsgInstructions] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // حالات نظام التقييم الثنائي (نطق الحروف من 5، التجويد من 5، والمجموع من 10)
+  const [pronunciationScore, setPronunciationScore] = useState<number>(4.5);
+  const [tajweedScore, setTajweedScore] = useState<number>(4.5);
+  const totalScore = Number((pronunciationScore + tajweedScore).toFixed(1));
+
   // حالات البحث والتصفية للطلاب
   const [searchTerm, setSearchTerm] = useState('');
   const [classFilter, setClassFilter] = useState('all');
@@ -111,7 +116,7 @@ export const TeacherDashboard = () => {
             <BookOpen className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-black text-base text-emerald-955">لوحة تحكم المعلم - مقرأة سورة يس</h1>
+            <h1 className="font-black text-base text-emerald-950">لوحة تحكم المعلم - مقرأة سورة يس</h1>
             <p className="text-xs text-stone-500">إدارة الطلاب، الواجبات، ومتابعة تلاوات الفصل</p>
           </div>
         </div>
@@ -373,7 +378,51 @@ export const TeacherDashboard = () => {
             <span className="text-xs text-stone-500">متابعة الأداء الصوتي والدرجات</span>
           </div>
 
-          <div className="text-center py-12 bg-stone-50 rounded-2xl border border-dashed border-stone-200 text-stone-500 text-xs">
+          {/* معاينة نموذج نظام التقييم الثنائي (نطق الحروف من 5، والتجويد من 5، والمجموع الكلي من 10) */}
+          <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-4 max-w-lg mx-auto">
+            <h4 className="font-bold text-xs text-stone-900 text-center">نموذج تقييم التلاوة (معاينة)</h4>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                  نطق الحروف (من 5):
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.5"
+                  value={pronunciationScore}
+                  onChange={(e) => setPronunciationScore(Math.min(5, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-stone-700 block mb-1">
+                  أحكام التجويد (من 5):
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="5"
+                  step="0.5"
+                  value={tajweedScore}
+                  onChange={(e) => setTajweedScore(Math.min(5, Math.max(0, parseFloat(e.target.value) || 0)))}
+                  className="w-full px-3 py-2 bg-white border border-stone-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+              <span className="text-xs font-bold text-emerald-900">المجموع الكلي للتقييم:</span>
+              <span className="text-sm font-black font-mono text-emerald-950 bg-white px-3 py-1 rounded-lg border border-emerald-300 shadow-xs">
+                {totalScore} / 10
+              </span>
+            </div>
+          </div>
+
+          <div className="text-center py-6 bg-stone-50 rounded-2xl border border-dashed border-stone-200 text-stone-500 text-xs mt-4">
             لا توجد تسجيلات معلقة جديدة حالياً. ستظهر تلاوات الطلاب هنا بمجرد إرسالهم للواجبات.
           </div>
         </div>
