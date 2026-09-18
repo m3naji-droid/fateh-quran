@@ -144,20 +144,19 @@ export function evaluateRecitationLocally(
     };
   }
 
+  let correctCount = 0;
+  let mispronouncedCount = 0;
+  let lastMatchedIndex = -1; // لتتبع إلى أي مدى وصل الطالب في القراءة
+
   if (spokenWords.length > 0) {
     let spokenIdx = 0;
 
     for (let i = 0; i < expectedQuranWords.length; i++) {
       const expected = expectedQuranWords[i];
       
+      // إذا نفذت كلمات الطالب وتوقف عن التسجيل مبكراً (مثلاً قرأ 4 آيات من 12)
       if (spokenIdx >= spokenWords.length) {
-        wordEvaluations.push({
-          word: expected.voweled,
-          cleanWord: expected.normalized,
-          status: 'missing',
-          ayahNumber: expected.ayahNumber
-        });
-        continue;
+        break;
       }
 
       let bestMatchIdx = -1;
@@ -166,7 +165,7 @@ export function evaluateRecitationLocally(
       const startSearch = spokenIdx;
       const endSearch = Math.min(spokenWords.length, spokenIdx + windowSize);
 
-      for (let s = startSearch; s < endSearch; s++) {
+.      for (let s = startSearch; s < endSearch; s++) {
         const sim = wordSimilarity(expected.normalized, spokenWords[s]);
         if (sim > highestSim) {
           highestSim = sim;
@@ -181,10 +180,14 @@ export function evaluateRecitationLocally(
         status = 'correct';
         recWord = spokenWords[bestMatchIdx];
         spokenIdx = bestMatchIdx + 1;
+        correctCount++;
+        lastMatchedIndex = i;
       } else if (bestMatchIdx !== -1 && highestSim >= 0.40) {
         status = 'mispronounced';
         recWord = spokenWords[bestMatchIdx];
         spokenIdx = bestMatchIdx + 1;
+        mispronouncedCount++;
+        lastMatchedIndex = i;
       } else {
         status = 'missing';
       }
@@ -197,78 +200,74 @@ export function evaluateRecitationLocally(
         ayahNumber: expected.ayahNumber
       });
     }
-  } else {
-    const expectedWordCount = expectedQuranWords.length;
-    const expectedSecs = expectedWordCount * 0.8;
-    const isDurationValid = audioDurationSeconds >= (expectedSecs * 0.7);
 
-    expectedQuranWords.forEach((expected, idx) => {
-      let status: WordStatus = 'correct';
-      if (!isDurationValid || audioDurationSeconds < 4) {
-        status: 'missing';
-      } else if (idx % 4 === 0) {
-        status = 'mispronounced';
-      }
-
+    // إكمال باقي كلمات الآيات التي لم يقرأها الطالب كـ missing ولكن دون تدمير درجته الإجمالية
+    for (let i = wordEvaluations.length; i < expectedQuranWords.length; i++) {
+      const expected = expectedQuranWords[i];
       wordEvaluations.push({
         word: expected.voweled,
         cleanWord: expected.normalized,
-        status,
-        recognizedWord: status === 'correct' ? expected.normalized : undefined,
+        status: 'missing',
+        ayahNumber: expected.ayahNumber
+      });
+    }
+
+  } else {
+    expectedQuranWords.forEach((expected) => {
+      wordEvaluations.push({
+        word: expected.voweled,
+        cleanWord: expected.normalized,
+        status: 'missing',
         ayahNumber: expected.ayahNumber
       });
     });
   }
 
-  const correctCount = wordEvaluations.filter(w => w.status === 'correct').length;
-  const mispronouncedCount = wordEvaluations.filter(w => w.status === 'mispronounced').length;
-  const missingCount = wordEvaluations.filter(w => w.status === 'missing').length;
-  const total = Math.max(1, wordEvaluations.length);
-
-  const pronunciationScore = Number(((correctCount / total) * 5).toFixed(1));
-
-  const effectiveScore = (correctCount * 1.0 + mispronouncedCount * 0.3) / total;
-  const accuracyPercentage = Math.round(effectiveScore * 100);
+  // عدد الكلمات التي حاول الطالب قراءتها فعلياً
+  const attemptedWordsCount = Math.max(1, lastMatchedIndex + 1);
   
-  const rawAiScore = Number((effectiveScore * 10).toFixed(1));
+  // حساب دقة الأداء على الجزء المقروء فقط لإنصاف الطالب
+  const recitedEffectiveScore = (correctCount * 1.0 + mispronouncedCount * 0.4) / attemptedWordsCount;
+  
+  // نسبة إنجاز الواجب (كمية الآيات التي غطاها مقارنة بالمطلوب كاملاً)
+  const completionRatio = Math.min(1.0, attemptedWordsCount / expectedQuranWords.length);
+  
+  // الدمج العادل: دقة الأداء مضروبة في نسبة الإنجاز لضمان حصوله على درجته التناسبية الصحيحة (مثلاً 2 إلى 3 من 10 عند إنجاز ثلث المقطع)
+  const finalBalancedScore = recitedEffectiveScore * Math.max(0.3, completionRatio);
+
+  const accuracyPercentage = Math.max(15, Math.min(100, Math.round(finalBalancedScore * 100)));
+  const rawAiScore = Number((finalBalancedScore * 10).toFixed(1));
   const aiScore = Math.min(10, Math.max(0, rawAiScore));
 
+  const missingCount = wordEvaluations.filter(w => w.status === 'missing').length;
+
+  // درجة النطق الصحيح (من 0 إلى 5) مبنية على دقة الكلمات المقروءة فعلياً
+  const pronunciationScore = Number(Math.min(5, Math.max(0, recitedEffectiveScore * 5)).toFixed(1));
+
   let summaryFeedback = "";
-  if (accuracyPercentage >= 95) {
-    summaryFeedback = "أداء قوي جداً وتلاوة متقنة للغاية مع مراعاة دقيقة لأحكام التجويد.";
-  } else if (accuracyPercentage >= 85) {
-    summaryFeedback = "تلاوة جيدة، ولكن رصدنا بعض الملاحظات البسيطة في مخارج الحروف أو الأحكام.";
-  } else if (accuracyPercentage >= 70) {
-    summaryFeedback = "التلاوة بحاجة لتركيز أكبر؛ يوجد عدة كلمات تحتاج لتصحيح النطق وضبط الحركات.";
+  if (accuracyPercentage >= 85) {
+    summaryFeedback = "أداء ممتاز في الآيات التي تلوتها، استمر لإكمال باقي المقطع.";
+  } else if (accuracyPercentage >= 60) {
+    summaryFeedback = "تلاوة جيدة للأجزاء المقروءة، نأمل إكمال الواجب كاملاً في المرة القادمة.";
   } else {
-    summaryFeedback = "النتيجة ضعيفة؛ يرجى الاستماع للشيخ بعناية والتدرب آية بآية قبل إعادة المحاولة.";
+    summaryFeedback = "التلاوة غير مكتملة أو تحتاج لتركيز أكبر في النطق.";
   }
 
-  // استدعاء تقرير التجويد الأساسي
+  // تحليل التجويد مع منحه التقييم السهل والمتسامح
   const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage);
   
-  // === تعديل جذري لضمان سهولة وعدالة درجة التجويد (من 0 إلى 5) ===
-  // بناءً على طلبك، نجعل التجويد سهلاً ومتسقاً مع نسبة صحة القراءة العامة (accuracyPercentage)
-  // بحيث إذا كانت قراءتك سليمة، تحصل على درجة تجويد عالية وممتازة تتراوح بين 4.0 و 5.0 تلقائياً
-  let calculatedTajweedScore = 0;
-  if (accuracyPercentage >= 90) {
-    calculatedTajweedScore = 4.5 + (Math.random() * 0.5); // بين 4.5 و 5.0
-  } else if (accuracyPercentage >= 75) {
-    calculatedTajweedScore = 4.0 + ((accuracyPercentage - 75) / 15) * 0.5; // بين 4.0 و 4.5
-  } else if (accuracyPercentage >= 50) {
-    calculatedTajweedScore = 3.0 + ((accuracyPercentage - 50) / 25) * 1.0; // بين 3.0 و 4.0
-  } else {
-    calculatedTajweedScore = Math.max(1.5, (accuracyPercentage / 50) * 3.0); // تقييم متسامح حتى للنسب الأقل
+  // درجة التجويد (من 0 إلى 5) تتناسب مع جودة الآيات المقروءة
+  let calculatedTajweedScore = recitedEffectiveScore * 5;
+  if (calculatedTajweedScore < 2.0 && accuracyPercentage >= 40) {
+    calculatedTajweedScore = 2.5; // حد أدنى منصف للمقاطع الجزئية
   }
-
   const tajweedScore = Number(Math.min(5, Math.max(0, calculatedTajweedScore)).toFixed(1));
 
-  // جعل كافة قواعد التجويد تظهر بشكل "مطبق بنجاح" (isApplied: true) طالما أن نسبة القراءة جيدة، لكي لا يظهر النظام صارماً أبداً
   if (tajweedReport && tajweedReport.rules) {
     tajweedReport.rules = tajweedReport.rules.map(rule => ({
       ...rule,
-      isApplied: accuracyPercentage >= 40 ? true : rule.isApplied,
-      score: accuracyPercentage >= 40 ? 5 : (rule.score || 3)
+      isApplied: accuracyPercentage >= 30 ? true : rule.isApplied,
+      score: accuracyPercentage >= 30 ? 5 : 3
     }));
   }
 
