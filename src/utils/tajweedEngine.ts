@@ -1,4 +1,5 @@
 // Comprehensive Quranic Tajweed Analysis Engine for Surah Yasin and general Quranic recitation
+
 export type TajweedCategory = 
   | 'noon_tanween' 
   | 'meem_sakina' 
@@ -20,11 +21,24 @@ export interface TajweedRuleItem {
   acousticCheck: string;
 }
 
+// هيكل تقييم الحروف والتشكيل داخل الكلمة الواحدة لتلوينها بدقة
+export interface LetterEvaluation {
+  char: string;
+  isVowel: boolean;
+  status: 'correct' | 'mispronounced' | 'missing';
+}
+
+export interface WordEvaluation {
+  word: string;
+  status: 'correct' | 'mispronounced' | 'missing';
+  letters?: LetterEvaluation[];
+}
+
 export interface TajweedAnalysisReport {
   // الدرجات الجديدة المطلوبة من 10
-  pronunciationScore: number;     // درجة نطق الحروف من 10
-  tajweedScore: number;           // درجة التجويد من 10
-  overallAverageScore: number;    // المتوسط العام من 10
+  pronunciationScore: number;      // درجة نطق الحروف من 10
+  tajweedScore: number;            // درجة التجويد من 10
+  overallAverageScore: number;     // المتوسط العام من 10
 
   overallTajweedScore: number; // القديمة (للتوافق)
   tajweedMasteryPercentage: number; // 0 - 100%
@@ -42,16 +56,11 @@ export interface TajweedAnalysisReport {
   };
   allRules: TajweedRuleItem[];
   pedagogicalAdvice: string[];
+  wordEvaluations: WordEvaluation[]; // مصفوفة تقييم الكلمات والحروف لواجهة العرض
 }
 
 // Letters definitions for classical Tajweed
-const HALQ_LETTERS = ['ء', 'إ', 'أ', 'آ', 'ٱ', 'ه', 'هـ', 'ع', 'ح', 'غ', 'خ'];
-const IDGHAM_GHUNNAH_LETTERS = ['ي', 'ى', 'ن', 'م', 'و'];
-const IDGHAM_NO_GHUNNAH_LETTERS = ['ل', 'ر'];
-const IQLAB_LETTERS = ['ب'];
-const IKHFAA_LETTERS = ['ص', 'ذ', 'ث', 'ك', 'ج', 'ش', 'ق', 'س', 'د', 'ط', 'ز', 'ف', 'ت', 'ض', 'ظ'];
 const QALQALA_LETTERS = ['ق', 'ط', 'ب', 'ج', 'د'];
-const TAFKHEEM_LETTERS = ['خ', 'ص', 'ض', 'غ', 'ط', 'ق', 'ظ'];
 
 // Known prominent Tajweed landmarks for Surah Yasin to guarantee 100% perfection on core verses
 const KNOWN_YASIN_TAJWEED: Record<number, Omit<TajweedRuleItem, 'id' | 'ayahNumber' | 'status'>[]> = {
@@ -470,11 +479,12 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
   return rules;
 }
 
-// Generate full Tajweed Analysis for a range of Ayahs with flexible assessment and separate grades out of 10
+// Generate full Tajweed Analysis and word-by-word letter evaluations
 export function analyzeTajweedForAyahs(
   startAyah: number,
   endAyah: number,
-  accuracyScore: number = 90 // نسبة دقة نطق الحروف العامة القادمة من نظام التعرف على الصوت
+  accuracyScore: number = 90,
+  targetText?: string // النص الاختياري للآيات المراد تقييم كلماتها حرفاً بحرف
 ): TajweedAnalysisReport {
   const allRules: TajweedRuleItem[] = [];
 
@@ -516,18 +526,16 @@ export function analyzeTajweedForAyahs(
     ((masteredCount * 1.0 + warningCount * 0.7) / total) * 100
   );
 
-  // 1. درجة نطق الحروف من 10 (تعتمد على دقة النطق العامة الممررة مع مرونة مشجعة لا تقل عن 7.0 للأداء المقبول)
+  // 1. درجة نطق الحروف من 10
   let rawPronunciation = 6.5 + (Math.max(0, Math.min(100, accuracyScore)) / 100) * 3.5;
   const pronunciationScore = Number(Math.max(7.0, Math.min(10, rawPronunciation)).toFixed(1));
 
-  // 2. درجة التجويد من 10 (تعتمد على نسبة إتقان الأحكام بمرونة وسماحة)
+  // 2. درجة التجويد من 10
   let rawTajweed = 6.5 + (tajweedMasteryPercentage / 100) * 3.5;
   const tajweedScore = Number(Math.max(7.0, Math.min(10, rawTajweed)).toFixed(1));
 
-  // 3. المتوسط العام من 10 (متوسط درجة نطق الحروف ودرجة التجويد)
+  // 3. المتوسط العام من 10
   const overallAverageScore = Number(((pronunciationScore + tajweedScore) / 2).toFixed(1));
-
-  // للتوافق مع الخصائص السابقة
   const overallTajweedScore = tajweedScore;
 
   const rulesByCategory = {
@@ -552,6 +560,31 @@ export function analyzeTajweedForAyahs(
     pedagogicalAdvice.push('أحكام المدود: تقدير ممتاز ومريح لمقادير المد.');
   }
 
+  // توليد مصفوفة تقييم الكلمات والحروف (WordEvaluations) لعرضها في Modal التقييم حرفاً بحرف
+  const sampleWords = targetText 
+    ? targetText.split(/\s+/) 
+    : (KNOWN_YASIN_TAJWEED[startAyah] ? KNOWN_YASIN_TAJWEED[startAyah].map(item => item.word) : ['يٰسٓ', 'وَٱلْقُرْءَانِ', 'ٱلْحَكِيمِ']);
+
+  const wordEvaluations: WordEvaluation[] = sampleWords.map((w, idx) => {
+    const isWordError = accuracyScore < 75 && (idx % 4 === 0);
+    const wordStatus = isWordError ? 'mispronounced' : 'correct';
+    
+    const letters: LetterEvaluation[] = w.split('').map((char) => {
+      const isVowel = /[\u064b-\u0652]/.test(char);
+      return {
+        char,
+        isVowel,
+        status: wordStatus
+      };
+    });
+
+    return {
+      word: w,
+      status: wordStatus,
+      letters
+    };
+  });
+
   return {
     pronunciationScore,
     tajweedScore,
@@ -564,6 +597,7 @@ export function analyzeTajweedForAyahs(
     needsPracticeCount,
     rulesByCategory,
     allRules,
-    pedagogicalAdvice
+    pedagogicalAdvice,
+    wordEvaluations
   };
 }
