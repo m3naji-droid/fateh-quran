@@ -15,15 +15,13 @@ function normalizeForMobile(text: string): string {
 }
 
 /**
- * دالة استخراج وتفصيل الحروف مع حركاتها بدقة صارمة للمقارنة
+ * دالة استخراج وتفصيل الحروف مع حركاتها بدقة للمقارنة
  */
 function extractLettersWithVowels(text: string): { baseLetter: string; vowel: string }[] {
   const result: { baseLetter: string; vowel: string }[] = [];
-  // تنظيف النص مع الاحتفاظ بالحركات للتدقيق الصارم
   let i = 0;
   while (i < text.length) {
     const char = text[i];
-    // إذا كان حرفاً عربياً أساسياً
     if (/[\u0621-\u064A]/.test(char)) {
       let base = char
         .replace(/[أإآا]/g, 'ا')
@@ -31,7 +29,6 @@ function extractLettersWithVowels(text: string): { baseLetter: string; vowel: st
         .replace(/ة/g, 'ه');
       
       let vowel = '';
-      // فحص الحرف التالي إذا كان حركة أو تشكيل (فتح، ضم، كسر، سكون، تنوين)
       if (i + 1 < text.length && /[\u064B-\u0652]/.test(text[i + 1])) {
         vowel = text[i + 1];
         i++;
@@ -44,7 +41,7 @@ function extractLettersWithVowels(text: string): { baseLetter: string; vowel: st
 }
 
 /**
- * دالة مطابقة صارمة جداً تقارن الحروف وحركاتها بدقة (الضمة غير الفتحة وغير الكسرة)
+ * دالة مطابقة تقارن الحروف وحركاتها (الضمة غير الفتحة وغير الكسرة بدقة متوازنة)
  */
 function strictLetterMatchingScore(expectedVoweled: string, spokenWord: string): number {
   const expectedLetters = extractLettersWithVowels(expectedVoweled);
@@ -56,21 +53,18 @@ function strictLetterMatchingScore(expectedVoweled: string, spokenWord: string):
   const totalLetters = expectedLetters.length;
 
   for (let i = 0; i < totalLetters; i++) {
-    if (i >= spokenLetters.length) break; // حرف ناقص
+    if (i >= spokenLetters.length) break;
     
     const exp = expectedLetters[i];
     const spk = spokenLetters[i];
 
-    // مطابقة الحرف الأساسي
     if (exp.baseLetter === spk.baseLetter) {
-      // مطابقة التشكيل والحركات بصرامة شديدة
       if (exp.vowel === spk.vowel) {
-        matchedScore += 1.0; // حرف وتشيكل صحيح تماماً
+        matchedScore += 1.0; 
       } else {
-        matchedScore += 0.4; // الحرف صحيح لكن التشكيل/الحركة خاطئة (مثل نطق المضموم مفتوحاً)
+        matchedScore += 0.5; // تساهل وسط عند خطأ التشكيل بدل 0.4
       }
     } else {
-      // إبدال حرف بآخر
       matchedScore += 0.0;
     }
   }
@@ -112,9 +106,9 @@ function cleanRecitationPrefixes(words: string[]): string[] {
 
 export interface EvaluationResult {
   accuracyPercentage: number;
-  aiScore: number;             // المجموع الكلي من 10 (نطق الحروف + التجويد)
-  tajweedScore: number;         // درجة التجويد من 0 إلى 5 (موزعة على عدد الأحكام)
-  pronunciationScore: number;  // درجة نطق الحروف من 0 إلى 5 (موزعة على الحروف والتشكيل)
+  aiScore: number;             // المجموع الكلي من 10
+  tajweedScore: number;         // درجة التجويد من 0 إلى 10 (موزعة على عدد الأحكام بمرونة وسطى)
+  pronunciationScore: number;  // درجة نطق الحروف من 0 إلى 10 (موزعة على الحروف والتشكيل)
   tajweedReport: TajweedAnalysisReport;
   wordEvaluations: WordEvaluation[];
   transcribedText: string;
@@ -177,7 +171,6 @@ export function evaluateRecitationLocally(
       const expected = expectedQuranWords[i];
       
       if (spokenIdx >= spokenWords.length) {
-        // ما تبقى يعتبر كلمات مفقودة
         wordEvaluations.push({
           word: expected.voweled,
           cleanWord: expected.normalized,
@@ -188,28 +181,26 @@ export function evaluateRecitationLocally(
       }
 
       const currentSpoken = spokenWords[spokenIdx];
-      // تقييم صارم يعتمد على الحروف والتشكيل والحركات
       const letterMatchRatio = strictLetterMatchingScore(expected.voweled, currentSpoken);
       
       let status: WordStatus = 'missing';
       let recWord: string | undefined = undefined;
 
-      if (letterMatchRatio >= 0.85) {
+      if (letterMatchRatio >= 0.80) {
         status = 'correct';
         recWord = currentSpoken;
         spokenIdx++;
         correctCount++;
         lastMatchedIndex = i;
         totalLetterScoreAccumulator += 1.0;
-      } else if (letterMatchRatio >= 0.35) {
+      } else if (letterMatchRatio >= 0.30) {
         status = 'mispronounced';
         recWord = currentSpoken;
         spokenIdx++;
         mispronouncedCount++;
         lastMatchedIndex = i;
-        totalLetterScoreAccumulator += letterMatchRatio; // خصم صارم بناءً على دقة الحروف والتشكيل الخاطئ
+        totalLetterScoreAccumulator += letterMatchRatio; 
       } else {
-        // الكلمة لم تتطابق، نحاول نافذة بحث مصغرة للكلمة التالية
         let bestSubMatchRatio = letterMatchRatio;
         let bestSubIdx = -1;
         const windowSize = 2;
@@ -222,8 +213,8 @@ export function evaluateRecitationLocally(
           }
         }
 
-        if (bestSubIdx !== -1 && bestSubMatchRatio >= 0.35) {
-          status = bestSubMatchRatio >= 0.85 ? 'correct' : 'mispronounced';
+        if (bestSubIdx !== -1 && bestSubMatchRatio >= 0.30) {
+          status = bestSubMatchRatio >= 0.80 ? 'correct' : 'mispronounced';
           recWord = spokenWords[bestSubIdx];
           spokenIdx = bestSubIdx + 1;
           if (status === 'correct') correctCount++;
@@ -255,30 +246,29 @@ export function evaluateRecitationLocally(
     });
   }
 
-  // حساب دقة نطق الحروف والتشكيل الصارم (من 5)
+  // حساب دقة نطق الحروف والتشكيل (من 10)
   const basePronunciationRatio = totalLetterScoreAccumulator / Math.max(1, totalEvaluatedWordsCount);
   const completionRatio = Math.min(1.0, (lastMatchedIndex + 1) / Math.max(1, expectedQuranWords.length));
-  const strictEffectiveRatio = basePronunciationRatio * Math.max(0.2, completionRatio);
+  const effectiveRatio = basePronunciationRatio * Math.max(0.25, completionRatio);
 
-  const pronunciationScore = Number(Math.min(5, Math.max(0, strictEffectiveRatio * 5)).toFixed(1));
-  const accuracyPercentage = Math.max(10, Math.min(100, Math.round(strictEffectiveRatio * 100)));
+  const pronunciationScore = Number(Math.min(10, Math.max(0, effectiveRatio * 10)).toFixed(1));
+  const accuracyPercentage = Math.max(10, Math.min(100, Math.round(effectiveRatio * 100)));
 
-  // تحليل التجويد وتوزيع الدرجات على عدد الأحكام الفعلية بصرامة
+  // تحليل التجويد وتوزيع الدرجات على عدد الأحكام بمرونة وسطى (من 10)
   const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage);
   
-  let calculatedTajweedScore = 5.0;
+  let calculatedTajweedScore = 10.0;
   if (tajweedReport && tajweedReport.rules && tajweedReport.rules.length > 0) {
     const totalRulesCount = tajweedReport.rules.length;
     let violatedRulesCount = 0;
 
-    // خصم صارم بناءً على عدد الأحكام ومستوى الدقة والتشكيل الحركي
     tajweedReport.rules = tajweedReport.rules.map(rule => {
-      let isAppliedClean = accuracyPercentage >= 65;
-      let ruleScore = 5;
+      let isAppliedClean = accuracyPercentage >= 50; // مرونة وسطية لقبول الحكم
+      let ruleScore = 10;
 
-      if (!isAppliedClean || accuracyPercentage < 45) {
+      if (!isAppliedClean || accuracyPercentage < 30) {
         violatedRulesCount++;
-        ruleScore = accuracyPercentage < 30 ? 1 : 3;
+        ruleScore = accuracyPercentage < 20 ? 3 : 6; // درجات وسطية غير قاسية
       }
 
       return {
@@ -288,35 +278,34 @@ export function evaluateRecitationLocally(
       };
     });
 
-    // توزيع درجات التجويد (من 5) بناءً على نسبة الأحكام المطبقة بشكل صحيح
     const appliedRulesRatio = Math.max(0, (totalRulesCount - violatedRulesCount)) / totalRulesCount;
-    calculatedTajweedScore = 5 * appliedRulesRatio * Math.max(0.4, strictEffectiveRatio);
+    calculatedTajweedScore = 10 * appliedRulesRatio * Math.max(0.4, effectiveRatio);
   } else {
-    calculatedTajweedScore = strictEffectiveRatio * 5;
+    calculatedTajweedScore = effectiveRatio * 10;
   }
 
-  const tajweedScore = Number(Math.min(5, Math.max(0, calculatedTajweedScore)).toFixed(1));
+  const tajweedScore = Number(Math.min(10, Math.max(0, calculatedTajweedScore)).toFixed(1));
 
-  // حساب المجموع الكلي (من 10) بدقة تامة (نطق الحروف + التجويد)
-  const rawAiScore = Number((pronunciationScore + tajweedScore).toFixed(1));
+  // حساب المجموع الكلي (من 10) كمتوسط بين نطق الحروف والتجويد أو المزيج المتوازن
+  const rawAiScore = Number(((pronunciationScore + tajweedScore) / 2).toFixed(1));
   const aiScore = Math.min(10, Math.max(0, rawAiScore));
 
   let summaryFeedback = "";
   if (accuracyPercentage >= 85) {
-    summaryFeedback = "أداء ممتاز في مخارج الحروف والتشكيل والتجويد، استمر بهذا التميز!";
+    summaryFeedback = "أداء رائع ومستويات ممتازة في النطق والتجويد، استمر في التألق!";
   } else if (accuracyPercentage >= 60) {
-    summaryFeedback = "تلاوة جيدة، يرجى الانتباه أكثر لضبط الحركات القصيرة (الفتح والضم والكسر) وتدقيق الأحكام.";
+    summaryFeedback = "تلاوة جيدة جداً، مع قليل من التركيز على ضبط الحركات والأحكام ستصل للدرجة الكاملة.";
   } else {
-    summaryFeedback = "التلاوة تحتاج إلى تدقيق أكبر في مخرج الحروف وتشكيلها الصحيح وإحكام قواعد التجويد.";
+    summaryFeedback = "التلاوة مقبولة وتحتاج إلى مزيد من التدريب على مخارج الحروف والتشكيل.";
   }
 
   const missingCount = wordEvaluations.filter(w => w.status === 'missing').length;
 
   return {
     accuracyPercentage,
-    aiScore,              // المجموع الكلي من 10 (نطق الحروف + التجويد)
-    tajweedScore,         // درجة التجويد من 5 موزعة على الأحكام
-    pronunciationScore,   // درجة نطق الحروف من 5 موزعة على الحروف والتشكيل
+    aiScore,              // المجموع الكلي من 10
+    tajweedScore,         // درجة التجويد من 10 (بمرونة وسطى)
+    pronunciationScore,   // درجة نطق الحروف من 10
     tajweedReport: {
       ...tajweedReport,
       overallTajweedScore: tajweedScore
