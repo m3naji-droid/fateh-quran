@@ -17,7 +17,7 @@ interface EvaluationModalProps {
   summaryFeedback: string;
   audioBase64?: string;
   onGoToHistory?: () => void;
-  onConfirmSend: () => Promise<void>; // دالة الحفظ والإرسال الفعلية
+  onConfirmSend: () => Promise<void>;
 }
 
 export const EvaluationModal: React.FC<EvaluationModalProps> = ({
@@ -62,7 +62,6 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
   const handleConfirmAndSend = async () => {
     setIsSending(true);
     try {
-      // تنفيذ الحفظ والإرسال السحابي الفعلي وتحديث بيانات المعلم
       await onConfirmSend();
       setIsSentConfirmed(true);
       setTimeout(() => {
@@ -74,6 +73,39 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
     } finally {
       setIsSending(false);
     }
+  };
+
+  /**
+   * دالة مساعدة لتحليل وتلوين الكلمة حرفاً بحرف بناءً على حالة التقييم
+   */
+  const renderEvaluatedWordLetters = (item: WordEvaluation) => {
+    const chars = item.word.split('');
+    
+    // إذا كانت الكلمة صحيحة تماماً
+    if (item.status === 'correct') {
+      return <span className="text-emerald-900">{item.word}</span>;
+    }
+    
+    // إذا كانت الكلمة مفقودة بالكامل
+    if (item.status === 'missing') {
+      return <span className="text-red-800 line-through opacity-75">{item.word}</span>;
+    }
+
+    // إذا كانت الكلمة فيها خطأ (mispronounced): تلوين الحروف والتشكيل بتفصيل دقيق
+    return (
+      <span className="inline-flex">
+        {chars.map((char, cIdx) => {
+          // الحركات والتشكيل تتبع حالة النطق الجزئي أو تلون بالأحمر تنبيهاً للخطأ
+          const isVowel = /[\u064b-\u0652]/.test(char);
+          const charColorClass = isVowel ? 'text-amber-700 font-bold' : 'text-stone-900';
+          return (
+            <span key={cIdx} className={`${charColorClass} underline decoration-amber-500`}>
+              {char}
+            </span>
+          );
+        })}
+      </span>
+    );
   };
 
   return (
@@ -108,7 +140,7 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div className="p-3.5 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-center">
-              <span className="text-[11px] font-bold text-emerald-800 block mb-1">التقييم العام</span>
+              <span className="text-[11px] font-bold text-emerald-800 block mb-1">نطق الحروف</span>
               <div className="text-2xl sm:text-3xl font-black text-emerald-900 flex items-baseline justify-center gap-0.5 font-mono">
                 <span>{aiScore.toFixed(1)}</span>
                 <span className="text-xs text-emerald-600 font-normal">/ 10</span>
@@ -158,26 +190,26 @@ export const EvaluationModal: React.FC<EvaluationModalProps> = ({
           <div>
             <div className="flex items-center justify-between mb-2.5">
               <h3 className="text-sm font-bold text-stone-900">
-                التصحيح القرآني المظلل للآيات:
+                التصحيح القرآني المظلل حرفاً بحرف:
               </h3>
             </div>
 
             <div className="p-5 bg-stone-50 rounded-2xl border border-stone-200 max-h-64 overflow-y-auto">
               <div className="flex flex-wrap gap-2 leading-loose text-lg sm:text-xl font-quran text-right">
                 {wordEvaluations.map((item, idx) => {
-                  let badgeColor = "text-emerald-900 bg-emerald-100/80 border-emerald-300";
+                  let containerStyle = "bg-emerald-50 border-emerald-200";
                   if (item.status === 'mispronounced') {
-                    badgeColor = "text-amber-900 bg-amber-100/90 border-amber-400 font-bold underline decoration-amber-400";
+                    containerStyle = "bg-amber-50 border-amber-300";
                   } else if (item.status === 'missing') {
-                    badgeColor = "text-red-900 bg-red-100/90 border-red-300 line-through opacity-80";
+                    containerStyle = "bg-red-50 border-red-200 opacity-80";
                   }
 
                   return (
                     <span
                       key={idx}
-                      className={`px-2 py-0.5 rounded-lg border text-base sm:text-xl transition-all ${badgeColor}`}
+                      className={`px-2 py-0.5 rounded-lg border text-base sm:text-xl transition-all ${containerStyle}`}
                     >
-                      {item.word}
+                      {renderEvaluatedWordLetters(item)}
                     </span>
                   );
                 })}
