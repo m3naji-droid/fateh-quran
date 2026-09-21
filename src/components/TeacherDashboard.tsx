@@ -11,8 +11,10 @@ import {
   Plus,
   Eye,
   X,
-  Upload
+  Upload,
+  FileSpreadsheet
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { ClassRoom, Student, Assignment, Submission } from '../types';
 import {
   saveClass,
@@ -53,12 +55,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [editedClassName, setEditedClassName] = useState('');
 
-  // حالات إضافة طالب جديد (فردي، جماعي نصي، أو عبر ملف PDF)
+  // حالات إضافة طالب جديد (فردي، جماعي نصي، إكسل، أو PDF)
   const [newName, setNewName] = useState('');
   const [newPersonalId, setNewPersonalId] = useState('');
   const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id || '');
   const [bulkStudentsText, setBulkStudentsText] = useState('');
-  const [addMode, setAddMode] = useState<'single' | 'bulk' | 'pdf'>('single');
+  const [addMode, setAddMode] = useState<'single' | 'bulk' | 'excel' | 'pdf'>('single');
 
   // حالات إنشاء واجب جديد
   const [asgTitle, setAsgTitle] = useState('تلاوة سورة يس');
@@ -102,14 +104,63 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     }
   };
 
-  // معالجة ملف الـ PDF واستخراج أسماء الطلاب
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // معالجة ملف الـ Excel واستخراج أسماء الطلاب والأرقام
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // تحويل محتوى الإكسل إلى مصفوفة بيانات JSON
+        const jsonData = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1 });
+        
+        const studentsArray: Array<{ name: string; personalNumber: string; classId: string }> = [];
+
+        jsonData.forEach((row: any, index: number) => {
+          // تخطي صف العناوين الأول إذا وجد
+          if (index === 0 && (String(row[0]).includes('اسم') || String(row[0]).includes('Name'))) return;
+          
+          const name = row[0] ? String(row[0]).trim() : '';
+          const personalNumber = row[1] ? String(row[1]).trim() : ('888' + Math.floor(Math.random() * 1000));
+
+          if (name) {
+            studentsArray.push({
+              name,
+              personalNumber,
+              classId: selectedClassId
+            });
+          }
+        });
+
+        if (studentsArray.length > 0) {
+          await saveBulkStudents(studentsArray);
+          onDataRefresh();
+          alert(`تم استيراد ${studentsArray.length} طالب بنجاح من ملف الإكسل!`);
+        } else {
+          alert("لم يتم العثور على بيانات صالحة في ملف الإكسل.");
+        }
+      } catch (err) {
+        console.error("Excel read error:", err);
+        alert("حدث خطأ أثناء قراءة ملف الإكسل. تأكد من صحة التنسيق.");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // معالجة ملف الـ PDF
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.type === 'application/pdf') {
       alert("تم رفع ملف الـ PDF بنجاح. جارٍ استخراج الأسماء وإضافتها للصف المحدد.");
-      const dummyExtractedText = "طالب مستخرج من الـ PDF 1, 111222333\nطالب مستخرج من الـ PDF 2, 444555666";
+      const dummyExtractedText = "طالب PDF 1, 111222333\nطالب PDF 2, 444555666";
       
       const lines = dummyExtractedText.split('\n').filter(l => l.trim());
       const studentsArray = lines.map((line) => {
@@ -305,29 +356,36 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
               </h3>
 
               <form onSubmit={handleAddStudent} className="space-y-4 pt-2 border-t border-stone-100">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-1">
                   <label className="text-xs font-semibold text-stone-700">طريقة الإضافة:</label>
                   <div className="flex gap-1 bg-stone-100 p-1 rounded-xl text-[11px]">
                     <button
                       type="button"
                       onClick={() => setAddMode('single')}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${addMode === 'single' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
+                      className={`px-2 py-1 rounded-lg font-bold transition-all ${addMode === 'single' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
                     >
                       فردي
                     </button>
                     <button
                       type="button"
                       onClick={() => setAddMode('bulk')}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${addMode === 'bulk' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
+                      className={`px-2 py-1 rounded-lg font-bold transition-all ${addMode === 'bulk' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
                     >
                       نصي
                     </button>
                     <button
                       type="button"
-                      onClick={() => setAddMode('pdf')}
-                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${addMode === 'pdf' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
+                      onClick={() => setAddMode('excel')}
+                      className={`px-2 py-1 rounded-lg font-bold transition-all ${addMode === 'excel' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
                     >
-                      ملف PDF
+                      إكسل
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAddMode('pdf')}
+                      className={`px-2 py-1 rounded-lg font-bold transition-all ${addMode === 'pdf' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
+                    >
+                      PDF
                     </button>
                   </div>
                 </div>
@@ -399,13 +457,29 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                   </>
                 )}
 
+                {addMode === 'excel' && (
+                  <div className="space-y-3 pt-2">
+                    <div className="border-2 border-dashed border-stone-300 rounded-2xl p-6 text-center bg-stone-50 hover:bg-stone-100 transition-all relative">
+                      <input
+                        type="file"
+                        accept=".xlsx, .xls, .csv"
+                        onChange={handleExcelUpload}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <FileSpreadsheet className="w-8 h-8 text-emerald-700 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-stone-800">اضغط لرفع ملف إكسل (Excel)</p>
+                      <p className="text-[10px] text-stone-500 mt-1">العمود الأول: الاسم، العمود الثاني: الرقم الشخصي</p>
+                    </div>
+                  </div>
+                )}
+
                 {addMode === 'pdf' && (
                   <div className="space-y-3 pt-2">
                     <div className="border-2 border-dashed border-stone-300 rounded-2xl p-6 text-center bg-stone-50 hover:bg-stone-100 transition-all relative">
                       <input
                         type="file"
                         accept="application/pdf"
-                        onChange={handleFileUpload}
+                        onChange={handlePdfUpload}
                         className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
                       />
                       <Upload className="w-8 h-8 text-emerald-700 mx-auto mb-2" />
