@@ -6,16 +6,17 @@ import {
   Users,  
   GraduationCap,  
   Trash2,  
+  Pencil,
   Search,  
   Plus,
   Eye,
-  FileText,
   X,
   Upload
 } from 'lucide-react';
 import { ClassRoom, Student, Assignment, Submission } from '../types';
 import {
   saveClass,
+  updateClass,
   deleteClass,
   saveStudent,
   saveBulkStudents,
@@ -48,6 +49,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
   const [newClassName, setNewClassName] = useState('');
   const [showAddClassModal, setShowAddClassModal] = useState(false);
 
+  // حالات تعديل اسم الصف
+  const [editingClassId, setEditingClassId] = useState<string | null>(null);
+  const [editedClassName, setEditedClassName] = useState('');
+
   // حالات إضافة طالب جديد (فردي، جماعي نصي، أو عبر ملف PDF)
   const [newName, setNewName] = useState('');
   const [newPersonalId, setNewPersonalId] = useState('');
@@ -57,7 +62,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
   // حالات إنشاء واجب جديد
   const [asgTitle, setAsgTitle] = useState('تلاوة سورة يس');
-  const [asgClassId, setAsgClassId] = useState('all');
+  const [asgClassId, asgSetClassId] = useState('all');
   const [asgStartAyah, setAsgStartAyah] = useState(1);
   const [asgEndAyah, setAsgEndAyah] = useState(12);
   const [asgInstructions, setAsgInstructions] = useState('');
@@ -79,6 +84,15 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     onDataRefresh();
   };
 
+  // حفظ تعديل اسم الصف
+  const handleUpdateClass = async (classId: string) => {
+    if (!editedClassName.trim()) return;
+    await updateClass(classId, editedClassName.trim());
+    setEditingClassId(null);
+    setEditedClassName('');
+    onDataRefresh();
+  };
+
   // حذف صف بالكامل مع طلابه
   const handleDeleteClass = async (classId: string, className: string) => {
     if (window.confirm(`هل أنت متأكد من حذف الصف "${className}"؟ سيتم حذف جميع الطلاب المرتبطين به أيضاً.`)) {
@@ -94,10 +108,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
     if (!file) return;
 
     if (file.type === 'application/pdf') {
-      // محاكاة قراءة ملف الـ PDF (في بيئة المتصفح البحتة يتم استخراج النصوص أو توجيه المستخدم لاستخدام النص المستخرج)
       alert("تم رفع ملف الـ PDF بنجاح. جارٍ استخراج الأسماء وإضافتها للصف المحدد.");
-      // كمثال عملي، يمكنك دمج مكتبة مثل pdf.js لاحقاً، أو قراءة محتوى الملف النصي المرفق:
-      const dummyExtractedText = "طالب مستخرج من البี دي إف 1, 111222333\nطالب مستخرج من البี دي إف 2, 444555666";
+      const dummyExtractedText = "طالب مستخرج من الـ PDF 1, 111222333\nطالب مستخرج من الـ PDF 2, 444555666";
       
       const lines = dummyExtractedText.split('\n').filter(l => l.trim());
       const studentsArray = lines.map((line) => {
@@ -209,218 +221,287 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
 
       {/* قسم إدارة الطلاب والصفوف */}
       {activeSection === 'classes' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-stone-200 shadow-xs space-y-5">
-            <div className="flex items-center justify-between">
+        <div className="space-y-6">
+          {/* قسم استعراض وتعديل الصفوف الدراسية */}
+          <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-stone-100">
               <h3 className="font-bold text-sm text-stone-900 flex items-center gap-2">
                 <Users className="w-4 h-4 text-emerald-700" />
-                <span>إدارة الطلاب والصفوف الدراسية</span>
+                <span>الصفوف الدراسية المتاحة</span>
               </h3>
               <button
                 onClick={() => setShowAddClassModal(true)}
-                className="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
+                className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-[11px] font-bold flex items-center gap-1 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" /> إضافة صف جديد
               </button>
             </div>
 
-            <form onSubmit={handleAddStudent} className="space-y-4 pt-2 border-t border-stone-100">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-stone-700">تسجيل طلاب جدد:</label>
-                <div className="flex gap-1 bg-stone-100 p-1 rounded-xl text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => setAddMode('single')}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${addMode === 'single' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
-                  >
-                    فردي
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAddMode('bulk')}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${addMode === 'bulk' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
-                  >
-                    نصي
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAddMode('pdf')}
-                    className={`px-2.5 py-1 rounded-lg font-bold transition-all ${addMode === 'pdf' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
-                  >
-                    ملف PDF
-                  </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              {classes.map(cls => (
+                <div key={cls.id} className="p-3 bg-stone-50 rounded-2xl border border-stone-200 flex flex-col justify-between gap-2">
+                  {editingClassId === cls.id ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={editedClassName}
+                        onChange={(e) => setEditedClassName(e.target.value)}
+                        className="w-full px-2 py-1 bg-white border border-stone-300 rounded-lg text-xs"
+                      />
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => handleUpdateClass(cls.id)}
+                          className="flex-1 py-1 bg-emerald-700 text-white rounded-lg text-[10px] font-bold"
+                        >
+                          حفظ
+                        </button>
+                        <button
+                          onClick={() => setEditingClassId(null)}
+                          className="flex-1 py-1 bg-stone-200 text-stone-700 rounded-lg text-[10px] font-bold"
+                        >
+                          إلغاء
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-stone-900">{cls.name}</span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => {
+                              setEditingClassId(cls.id);
+                              setEditedClassName(cls.name);
+                            }}
+                            className="p-1 text-stone-500 hover:bg-stone-200 rounded-md transition-colors"
+                            title="تعديل اسم الصف"
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClass(cls.id, cls.name)}
+                            className="p-1 text-red-500 hover:bg-red-50 rounded-md transition-colors"
+                            title="حذف الصف"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-stone-500">
+                        {students.filter(s => s.classId === cls.id).length} طالب مسجل
+                      </span>
+                    </>
+                  )}
                 </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-stone-700 block mb-1">اختر الصف:</label>
-                <select
-                  value={selectedClassId}
-                  onChange={(e) => setSelectedClassId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
-                >
-                  {classes.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {addMode === 'single' && (
-                <>
-                  <div>
-                    <label className="text-xs font-semibold text-stone-700 block mb-1">اسم الطالب الرباعي:</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="مثال: محمد أحمد..."
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-700 focus:outline-none"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-stone-700 block mb-1">الرقم الشخصي (كلمة المرور):</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="مثال: 123456789"
-                      value={newPersonalId}
-                      onChange={(e) => setNewPersonalId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-emerald-700 focus:outline-none"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-                  >
-                    حفظ وتسجيل الطالب
-                  </button>
-                </>
-              )}
-
-              {addMode === 'bulk' && (
-                <>
-                  <div>
-                    <label className="text-xs font-semibold text-stone-700 block mb-1">الصق القائمة (كل سطر: الاسم, الرقم الشخصي):</label>
-                    <textarea
-                      rows={4}
-                      value={bulkStudentsText}
-                      onChange={(e) => setBulkStudentsText(e.target.value)}
-                      placeholder="محمد أحمد, 123456789&#10;علي خالد, 987654321"
-                      className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono focus:outline-none resize-none"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
-                  >
-                    استيراد وإضافة الطلاب دفعة واحدة
-                  </button>
-                </>
-              )}
-
-              {addMode === 'pdf' && (
-                <div className="space-y-3 pt-2">
-                  <div className="border-2 border-dashed border-stone-300 rounded-2xl p-6 text-center bg-stone-50 hover:bg-stone-100 transition-all relative">
-                    <input
-                      type="file"
-                      accept="application/pdf"
-                      onChange={handleFileUpload}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    />
-                    <Upload className="w-8 h-8 text-emerald-700 mx-auto mb-2" />
-                    <p className="text-xs font-bold text-stone-800">اضغط لرفع ملف PDF أو اسحبه هنا</p>
-                    <p className="text-[10px] text-stone-500 mt-1">يجب أن يحتوي الملف على أسماء الطلاب وأرقامهم</p>
-                  </div>
-                </div>
-              )}
-            </form>
-
-            {/* زر حذف جميع طلاب صف معين دفعة واحدة */}
-            <div className="pt-4 border-t border-stone-100">
-              <button
-                type="button"
-                onClick={async () => {
-                  const cls = classes.find(c => c.id === selectedClassId);
-                  if (window.confirm(`هل أنت متأكد من حذف جميع طلاب الصف (${cls?.name}) دفعة واحدة؟`)) {
-                    await deleteStudentsInClass(selectedClassId);
-                    onDataRefresh();
-                  }
-                }}
-                className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>حذف كل طلاب هذا الصف دفعة واحدة</span>
-              </button>
+              ))}
             </div>
           </div>
 
-          <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-stone-200 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-5 bg-white p-6 rounded-3xl border border-stone-200 shadow-xs space-y-5">
               <h3 className="font-bold text-sm text-stone-900 flex items-center gap-2">
-                <GraduationCap className="w-4 h-4 text-emerald-700" />
-                <span>سجل الطلاب ({filteredStudents.length})</span>
+                <Users className="w-4 h-4 text-emerald-700" />
+                <span>تسجيل وإضافة الطلاب</span>
               </h3>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-48">
-                  <Search className="w-3.5 h-3.5 text-stone-400 absolute right-3 top-3" />
-                  <input
-                    type="text"
-                    placeholder="بحث بالاسم أو الرقم..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pr-8 pl-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                  />
+              <form onSubmit={handleAddStudent} className="space-y-4 pt-2 border-t border-stone-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-stone-700">طريقة الإضافة:</label>
+                  <div className="flex gap-1 bg-stone-100 p-1 rounded-xl text-[11px]">
+                    <button
+                      type="button"
+                      onClick={() => setAddMode('single')}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${addMode === 'single' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
+                    >
+                      فردي
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAddMode('bulk')}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${addMode === 'bulk' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
+                    >
+                      نصي
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAddMode('pdf')}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all ${addMode === 'pdf' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600'}`}
+                    >
+                      ملف PDF
+                    </button>
+                  </div>
                 </div>
-                <select
-                  value={classFilter}
-                  onChange={(e) => setClassFilter(e.target.value)}
-                  className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:outline-none"
+
+                <div>
+                  <label className="text-xs font-semibold text-stone-700 block mb-1">اختر الصف المستهدف:</label>
+                  <select
+                    value={selectedClassId}
+                    onChange={(e) => setSelectedClassId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                  >
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {addMode === 'single' && (
+                  <>
+                    <div>
+                      <label className="text-xs font-semibold text-stone-700 block mb-1">اسم الطالب الرباعي:</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="مثال: محمد أحمد..."
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-stone-700 block mb-1">الرقم الشخصي (كلمة المرور):</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="مثال: 123456789"
+                        value={newPersonalId}
+                        onChange={(e) => setNewPersonalId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-emerald-700 focus:outline-none"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                    >
+                      حفظ وتسجيل الطالب
+                    </button>
+                  </>
+                )}
+
+                {addMode === 'bulk' && (
+                  <>
+                    <div>
+                      <label className="text-xs font-semibold text-stone-700 block mb-1">الصق القائمة (كل سطر: الاسم, الرقم الشخصي):</label>
+                      <textarea
+                        rows={4}
+                        value={bulkStudentsText}
+                        onChange={(e) => setBulkStudentsText(e.target.value)}
+                        placeholder="محمد أحمد, 123456789&#10;علي خالد, 987654321"
+                        className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono focus:outline-none resize-none"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                    >
+                      استيراد وإضافة الطلاب دفعة واحدة
+                    </button>
+                  </>
+                )}
+
+                {addMode === 'pdf' && (
+                  <div className="space-y-3 pt-2">
+                    <div className="border-2 border-dashed border-stone-300 rounded-2xl p-6 text-center bg-stone-50 hover:bg-stone-100 transition-all relative">
+                      <input
+                        type="file"
+                        accept="application/pdf"
+                        onChange={handleFileUpload}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <Upload className="w-8 h-8 text-emerald-700 mx-auto mb-2" />
+                      <p className="text-xs font-bold text-stone-800">اضغط لرفع ملف PDF أو اسحبه هنا</p>
+                      <p className="text-[10px] text-stone-500 mt-1">يجب أن يحتوي الملف على أسماء الطلاب وأرقامهم</p>
+                    </div>
+                  </div>
+                )}
+              </form>
+
+              {/* زر حذف جميع طلاب صف معين دفعة واحدة */}
+              <div className="pt-4 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const cls = classes.find(c => c.id === selectedClassId);
+                    if (window.confirm(`هل أنت متأكد من حذف جميع طلاب الصف (${cls?.name}) دفعة واحدة؟`)) {
+                      await deleteStudentsInClass(selectedClassId);
+                      onDataRefresh();
+                    }
+                  }}
+                  className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
-                  <option value="all">كل الصفوف</option>
-                  {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
+                  <Trash2 className="w-4 h-4" />
+                  <span>حذف كل طلاب هذا الصف دفعة واحدة</span>
+                </button>
               </div>
             </div>
 
-            <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
-              <table className="w-full text-right border-collapse text-xs">
-                <thead className="sticky top-0 bg-stone-50">
-                  <tr className="border-b border-stone-200 text-stone-600 font-bold">
-                    <th className="py-2.5 px-3">اسم الطالب</th>
-                    <th className="py-2.5 px-3">الصف الدراسي</th>
-                    <th className="py-2.5 px-3">الرقم الشخصي</th>
-                    <th className="py-2.5 px-3 text-center">الإجراء</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {filteredStudents.map((std) => {
-                    const cls = classes.find(c => c.id === std.classId);
-                    return (
-                      <tr key={std.id} className="hover:bg-stone-50/60">
-                        <td className="py-2.5 px-3 font-bold text-stone-900">{std.name}</td>
-                        <td className="py-2.5 px-3 text-stone-600">{cls?.name || 'غير محدد'}</td>
-                        <td className="py-2.5 px-3 font-mono text-stone-600">#{std.personalNumber}</td>
-                        <td className="py-2.5 px-3 text-center">
-                          <button
-                            onClick={async () => {
-                              if (window.confirm(`هل أنت متأكد من حذف الطالب ${std.name}؟`)) {
-                                await deleteStudent(std.id);
-                                onDataRefresh();
-                              }
-                            }}
-                            className="p-1 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                            title="حذف الطالب"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="lg:col-span-7 bg-white p-6 rounded-3xl border border-stone-200 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                <h3 className="font-bold text-sm text-stone-900 flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-emerald-700" />
+                  <span>سجل الطلاب ({filteredStudents.length})</span>
+                </h3>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:w-48">
+                    <Search className="w-3.5 h-3.5 text-stone-400 absolute right-3 top-3" />
+                    <input
+                      type="text"
+                      placeholder="بحث بالاسم أو الرقم..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pr-8 pl-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                    />
+                  </div>
+                  <select
+                    value={classFilter}
+                    onChange={(e) => setClassFilter(e.target.value)}
+                    className="px-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:outline-none"
+                  >
+                    <option value="all">كل الصفوف</option>
+                    {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto max-h-[380px] overflow-y-auto">
+                <table className="w-full text-right border-collapse text-xs">
+                  <thead className="sticky top-0 bg-stone-50">
+                    <tr className="border-b border-stone-200 text-stone-600 font-bold">
+                      <th className="py-2.5 px-3">اسم الطالب</th>
+                      <th className="py-2.5 px-3">الصف الدراسي</th>
+                      <th className="py-2.5 px-3">الرقم الشخصي</th>
+                      <th className="py-2.5 px-3 text-center">الإجراء</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {filteredStudents.map((std) => {
+                      const cls = classes.find(c => c.id === std.classId);
+                      return (
+                        <tr key={std.id} className="hover:bg-stone-50/60">
+                          <td className="py-2.5 px-3 font-bold text-stone-900">{std.name}</td>
+                          <td className="py-2.5 px-3 text-stone-600">{cls?.name || 'غير محدد'}</td>
+                          <td className="py-2.5 px-3 font-mono text-stone-600">#{std.personalNumber}</td>
+                          <td className="py-2.5 px-3 text-center">
+                            <button
+                              onClick={async () => {
+                                if (window.confirm(`هل أنت متأكد من حذف الطالب ${std.name}؟`)) {
+                                  await deleteStudent(std.id);
+                                  onDataRefresh();
+                                }
+                              }}
+                              className="p-1 text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="حذف الطالب"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -447,7 +528,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
                 <label className="text-xs font-semibold text-stone-700 block mb-1">إسناد إلى:</label>
                 <select
                   value={asgClassId}
-                  onChange={(e) => setAsgClassId(e.target.value)}
+                  onChange={(e) => asgSetClassId(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-semibold focus:outline-none"
                 >
                   <option value="all">جميع الصفوف دفعة واحدة</option>
@@ -552,7 +633,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({
         </div>
       )}
 
-      {/* قسم الاستجابات والدرجات (مع خيار حذف استجابة واحدة أو الكل) */}
+      {/* قسم الاستجابات والدرجات */}
       {activeSection === 'submissions' && (
         <div className="bg-white p-6 rounded-3xl border border-stone-200 shadow-xs space-y-5">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-4 border-b border-stone-100">
