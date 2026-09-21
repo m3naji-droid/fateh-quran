@@ -43,7 +43,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     setTeacherError('');
 
     // Verification against fixed credentials: Mohamed / M3naji
-    if (teacherUsername.trim() === 'Mohamed' && teacherPassword === 'M3naji') {
+    if (teacherUsername.trim() === 'Mohamed' && teacherPassword === '1234') {
       onTeacherLogin('Mohamed');
     } else {
       setTeacherError('اسم المستخدم أو كلمة المرور غير صحيحة.');
