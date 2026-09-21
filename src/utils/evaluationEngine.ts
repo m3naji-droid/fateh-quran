@@ -41,9 +41,9 @@ function extractLettersWithVowels(text: string): { baseLetter: string; vowel: st
 }
 
 /**
- * دالة مطابقة تقارن الحروف وحركاتها (الضمة غير الفتحة وغير الكسرة بدقة متوازنة)
+ * [معدل لتكون متسامحة] دالة مطابقة بمرونة عالية وعدم التشديد على الحركات أو التشكيل الدقيق
  */
-function strictLetterMatchingScore(expectedVoweled: string, spokenWord: string): number {
+function lenientLetterMatchingScore(expectedVoweled: string, spokenWord: string): number {
   const expectedLetters = extractLettersWithVowels(expectedVoweled);
   const spokenLetters = extractLettersWithVowels(spokenWord);
 
@@ -62,14 +62,16 @@ function strictLetterMatchingScore(expectedVoweled: string, spokenWord: string):
       if (exp.vowel === spk.vowel) {
         matchedScore += 1.0; 
       } else {
-        matchedScore += 0.5; // تساهل وسط عند خطأ التشكيل بدل 0.4
+        matchedScore += 0.85; // تسامح عالي جداً مع اختلاف التشكيل والحركات لتجنب التشديد
       }
     } else {
-      matchedScore += 0.0;
+      matchedScore += 0.1; // تسامح طفيف حتى مع تقارب الحروف
     }
   }
 
-  return Math.max(0, Math.min(1, matchedScore / totalLetters));
+  // إذا كان النص متقارباً جداً كلياً
+  const rawRatio = matchedScore / totalLetters;
+  return Math.max(0, Math.min(1, rawRatio >= 0.5 ? rawRatio * 1.15 : rawRatio)); 
 }
 
 function cleanRecitationPrefixes(words: string[]): string[] {
@@ -107,8 +109,8 @@ function cleanRecitationPrefixes(words: string[]): string[] {
 export interface EvaluationResult {
   accuracyPercentage: number;
   aiScore: number;             // المجموع الكلي من 10
-  tajweedScore: number;         // درجة التجويد من 0 إلى 10 (موزعة على عدد الأحكام بمرونة وسطى)
-  pronunciationScore: number;  // درجة نطق الحروف من 0 إلى 10 (موزعة على الحروف والتشكيل)
+  tajweedScore: number;          // درجة التجويد من 0 إلى 10
+  pronunciationScore: number;  // درجة نطق الحروف من 0 إلى 10
   tajweedReport: TajweedAnalysisReport;
   wordEvaluations: WordEvaluation[];
   transcribedText: string;
@@ -129,7 +131,7 @@ export function evaluateRecitationLocally(
   const spokenWords = cleanRecitationPrefixes(rawSpokenWords);
 
   const wordEvaluations: WordEvaluation[] = [];
-  const isEmptyOrSilent = audioDurationSeconds > 0 && audioDurationSeconds < 3 && spokenWords.length === 0;
+  const isEmptyOrSilent = audioDurationSeconds > 0 && audioDurationSeconds < 2 && spokenWords.length === 0;
 
   if (isEmptyOrSilent) {
     expectedQuranWords.forEach((expected) => {
@@ -181,19 +183,20 @@ export function evaluateRecitationLocally(
       }
 
       const currentSpoken = spokenWords[spokenIdx];
-      const letterMatchRatio = strictLetterMatchingScore(expected.voweled, currentSpoken);
+      const letterMatchRatio = lenientLetterMatchingScore(expected.voweled, currentSpoken);
       
       let status: WordStatus = 'missing';
       let recWord: string | undefined = undefined;
 
-      if (letterMatchRatio >= 0.80) {
+      // [تسامح عالي] تم خفض عتبة النجاح لاعتبار الكلمة صحيحة حتى مع تفاوت النطق البسيط
+      if (letterMatchRatio >= 0.55) {
         status = 'correct';
         recWord = currentSpoken;
         spokenIdx++;
         correctCount++;
         lastMatchedIndex = i;
         totalLetterScoreAccumulator += 1.0;
-      } else if (letterMatchRatio >= 0.30) {
+      } else if (letterMatchRatio >= 0.20) {
         status = 'mispronounced';
         recWord = currentSpoken;
         spokenIdx++;
@@ -206,15 +209,15 @@ export function evaluateRecitationLocally(
         const windowSize = 2;
         
         for (let w = 1; w <= windowSize && (spokenIdx + w) < spokenWords.length; w++) {
-          const ratio = strictLetterMatchingScore(expected.voweled, spokenWords[spokenIdx + w]);
+          const ratio = lenientLetterMatchingScore(expected.voweled, spokenWords[spokenIdx + w]);
           if (ratio > bestSubMatchRatio) {
             bestSubMatchRatio = ratio;
             bestSubIdx = spokenIdx + w;
           }
         }
 
-        if (bestSubIdx !== -1 && bestSubMatchRatio >= 0.30) {
-          status = bestSubMatchRatio >= 0.80 ? 'correct' : 'mispronounced';
+        if (bestSubIdx !== -1 && bestSubMatchRatio >= 0.20) {
+          status = bestSubMatchRatio >= 0.55 ? 'correct' : 'mispronounced';
           recWord = spokenWords[bestSubIdx];
           spokenIdx = bestSubIdx + 1;
           if (status === 'correct') correctCount++;
@@ -246,30 +249,24 @@ export function evaluateRecitationLocally(
     });
   }
 
-  // حساب دقة نطق الحروف والتشكيل (من 10)
+  // حساب دقة نطق الحروف والتشكيل بمرونة وتساهل عادل
   const basePronunciationRatio = totalLetterScoreAccumulator / Math.max(1, totalEvaluatedWordsCount);
   const completionRatio = Math.min(1.0, (lastMatchedIndex + 1) / Math.max(1, expectedQuranWords.length));
-  const effectiveRatio = basePronunciationRatio * Math.max(0.25, completionRatio);
+  
+  // رفع نسبة التسامح في المعامل النهائي
+  const effectiveRatio = Math.min(1.0, (basePronunciationRatio * Math.max(0.4, completionRatio)) * 1.15);
 
-  const pronunciationScore = Number(Math.min(10, Math.max(0, effectiveRatio * 10)).toFixed(1));
-  const accuracyPercentage = Math.max(10, Math.min(100, Math.round(effectiveRatio * 100)));
+  const pronunciationScore = Number(Math.min(10, Math.max(2, effectiveRatio * 10)).toFixed(1));
+  const accuracyPercentage = Math.max(25, Math.min(100, Math.round(effectiveRatio * 100)));
 
-  // تحليل التجويد وتوزيع الدرجات على عدد الأحكام بمرونة وسطى (من 10)
+  // تحليل التجويد بمرونة ودعم واسع
   const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage);
   
   let calculatedTajweedScore = 10.0;
   if (tajweedReport && tajweedReport.rules && tajweedReport.rules.length > 0) {
-    const totalRulesCount = tajweedReport.rules.length;
-    let violatedRulesCount = 0;
-
     tajweedReport.rules = tajweedReport.rules.map(rule => {
-      let isAppliedClean = accuracyPercentage >= 50; // مرونة وسطية لقبول الحكم
-      let ruleScore = 10;
-
-      if (!isAppliedClean || accuracyPercentage < 30) {
-        violatedRulesCount++;
-        ruleScore = accuracyPercentage < 20 ? 3 : 6; // درجات وسطية غير قاسية
-      }
+      let isAppliedClean = accuracyPercentage >= 35; // تسامح واسع جداً في الأحكام
+      let ruleScore = isAppliedClean ? 9 : 6;
 
       return {
         ...rule,
@@ -278,34 +275,33 @@ export function evaluateRecitationLocally(
       };
     });
 
-    const appliedRulesRatio = Math.max(0, (totalRulesCount - violatedRulesCount)) / totalRulesCount;
-    calculatedTajweedScore = 10 * appliedRulesRatio * Math.max(0.4, effectiveRatio);
+    calculatedTajweedScore = Math.min(10, Math.max(5, effectiveRatio * 10 + 1));
   } else {
-    calculatedTajweedScore = effectiveRatio * 10;
+    calculatedTajweedScore = Math.min(10, Math.max(5, effectiveRatio * 10));
   }
 
-  const tajweedScore = Number(Math.min(10, Math.max(0, calculatedTajweedScore)).toFixed(1));
+  const tajweedScore = Number(calculatedTajweedScore.toFixed(1));
 
-  // حساب المجموع الكلي (من 10) كمتوسط بين نطق الحروف والتجويد أو المزيج المتوازن
+  // حساب المجموع الكلي (من 10) بأسلوب مشجع وغير مشدد
   const rawAiScore = Number(((pronunciationScore + tajweedScore) / 2).toFixed(1));
-  const aiScore = Math.min(10, Math.max(0, rawAiScore));
+  const aiScore = Math.min(10, Math.max(3, rawAiScore));
 
   let summaryFeedback = "";
-  if (accuracyPercentage >= 85) {
-    summaryFeedback = "أداء رائع ومستويات ممتازة في النطق والتجويد، استمر في التألق!";
-  } else if (accuracyPercentage >= 60) {
-    summaryFeedback = "تلاوة جيدة جداً، مع قليل من التركيز على ضبط الحركات والأحكام ستصل للدرجة الكاملة.";
+  if (accuracyPercentage >= 75) {
+    summaryFeedback = "أحسنت! تلاوة طيبة ومسترسلة تدل على حفظ وفهم ممتازين.";
+  } else if (accuracyPercentage >= 45) {
+    summaryFeedback = "بداية موفقة وتلاوة جميلة، استمر في التدريب وستتحسن أكثر.";
   } else {
-    summaryFeedback = "التلاوة مقبولة وتحتاج إلى مزيد من التدريب على مخارج الحروف والتشكيل.";
+    summaryFeedback = "محاولة جيدة، حاول القراءة بهدوء وبجانب المصحف لضبط الكلمات.";
   }
 
   const missingCount = wordEvaluations.filter(w => w.status === 'missing').length;
 
   return {
     accuracyPercentage,
-    aiScore,              // المجموع الكلي من 10
-    tajweedScore,         // درجة التجويد من 10 (بمرونة وسطى)
-    pronunciationScore,   // درجة نطق الحروف من 10
+    aiScore,              
+    tajweedScore,          
+    pronunciationScore,    
     tajweedReport: {
       ...tajweedReport,
       overallTajweedScore: tajweedScore
