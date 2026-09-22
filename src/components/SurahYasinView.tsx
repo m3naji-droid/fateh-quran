@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SURAH_YASIN, getVerseWords, QuranicWord } from '../data/surahYasin';
 import { evaluateRecitationLocally, EvaluationResult } from '../utils/evaluationEngine';
-// التحديث الأساسي هنا لتصحيح مسار استيراد المحرك ليتطابق مع مجلد utils
 import { generateTajweedReport, TajweedAnalysisReport } from '../utils/tajweedEngine';
-import TajweedBreakdownCard from './TajweedBreakdownCard';
+// التعديل هنا: استخدام الأقواس للاستيراد المسمى للمكون الصحيح
+import { TajweedBreakdownCard } from './TajweedBreakdownCard';
 import confetti from 'canvas-confetti';
 import { 
   Mic, MicOff, Play, Pause, RefreshCw, Award, BookOpen, 
@@ -33,13 +33,11 @@ export default function SurahYasinView() {
   const timerRef = useRef<any>(null);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
 
-  // تحديث تقرير التجويد تلقائياً عند تغيير الآيات أو وضع التجويد
   useEffect(() => {
     const report = generateTajweedReport(SURAH_YASIN);
     setTajweedReport(report);
   }, [startAyah, endAyah]);
 
-  // مؤقت التسجيل الصوتي
   useEffect(() => {
     if (isRecording) {
       setRecordingTime(0);
@@ -72,8 +70,6 @@ export default function SurahYasinView() {
         const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         setAudioBlob(blob);
         audioElementRef.current = new Audio(URL.createObjectURL(blob));
-        
-        // محاكاة أو تشغيل عملية التقييم المحلي للتلاوة
         processEvaluation(blob);
       };
 
@@ -89,7 +85,6 @@ export default function SurahYasinView() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      // إيقاف استخدام الميكروفون الفعلي
       mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
     }
   };
@@ -98,11 +93,9 @@ export default function SurahYasinView() {
     setIsEvaluating(true);
     
     setTimeout(() => {
-      // جلب الكلمات المتوقعة للآيات المحددة
       const expectedWords = getVerseWords(startAyah, endAyah);
       const sampleText = expectedWords.map(w => w.voweled).join(' ');
       
-      // إجراء التقييم المحلي
       const result = evaluateRecitationLocally(
         transcribedText || sampleText, 
         startAyah, 
@@ -121,7 +114,7 @@ export default function SurahYasinView() {
             origin: { y: 0.6 }
           });
         } catch (e) {
-          // تجاهل خطأ الكونفيتي إن لم يكن محملاً
+          // تجاهل الخطأ إن لم يكن متاحاً
         }
       }
     }, 1200);
@@ -139,8 +132,6 @@ export default function SurahYasinView() {
     }
   };
 
-  const currentAyahsWords = getVerseWords(startAyah, endAyah);
-
   return (
     <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6 text-right" dir="rtl">
       {/* رأس الصفحة العلوية */}
@@ -155,7 +146,6 @@ export default function SurahYasinView() {
           </p>
         </div>
         
-        {/* أزرار الأوضاع */}
         <div className="flex bg-emerald-900/60 p-1.5 rounded-xl border border-emerald-600/50">
           <button 
             onClick={() => { setSelectedMode('practice'); setActiveTab('recitation'); }}
@@ -212,7 +202,7 @@ export default function SurahYasinView() {
               التحليل التجويدي الشامل لسورة يس المباركة (83 آية)
             </h2>
             <p className="text-gray-600 text-sm mb-6">
-              يستعرض هذا القسم كافة الأحكام التجويدية المستخرجة تلقائياً من سور يس (الإدغام، الإخفاء، القلقلة، المدود، وغيرها).
+              يستعرض هذا القسم كافة الأحكام التجويدية المستخرجة تلقائياً من سورة يس.
             </p>
 
             {tajweedReport && (
@@ -222,7 +212,6 @@ export default function SurahYasinView() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* قسم عرض الآيات وقراءة الطالب */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 space-y-4">
               <h3 className="text-lg font-bold text-gray-800 border-b pb-2 flex items-center justify-between">
@@ -232,7 +221,6 @@ export default function SurahYasinView() {
                 </span>
               </h3>
 
-              {/* عرض الآيات الكريمة */}
               <div className="p-5 bg-amber-50/50 rounded-xl border border-amber-100 text-center leading-loose text-2xl font-serif text-gray-900">
                 {SURAH_YASIN
                   .filter(a => a.number >= startAyah && a.number <= endAyah)
@@ -246,7 +234,6 @@ export default function SurahYasinView() {
                   ))}
               </div>
 
-              {/* أداة التسجيل الصوتي */}
               <div className="pt-4 border-t flex flex-col items-center justify-center space-y-4">
                 <div className="flex items-center gap-4">
                   {!isRecording ? (
@@ -287,7 +274,6 @@ export default function SurahYasinView() {
               </div>
             </div>
 
-            {/* تقييم الكلمات بالتفصيل */}
             {evaluationResult && (
               <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 space-y-4">
                 <h4 className="font-bold text-gray-800 text-base flex items-center gap-2">
@@ -316,7 +302,6 @@ export default function SurahYasinView() {
             )}
           </div>
 
-          {/* لوحة النتائج الجانبية */}
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-2xl shadow-md border border-gray-100 space-y-6">
               <h3 className="text-lg font-bold text-gray-800 border-b pb-2 flex items-center gap-2">
