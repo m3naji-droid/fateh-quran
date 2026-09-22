@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { BookOpen, Search } from 'lucide-react';
 import { SURAH_YASIN } from '../data/surahYasin';
 import { MisharyAyahPlayer } from './MisharyAyahPlayer';
+import { generateTajweedReport } from '../engines/tajweedEngine';
+import { TajweedBreakdownCard } from './TajweedBreakdownCard';
 
 export const SurahYasinView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -16,6 +18,11 @@ export const SurahYasinView: React.FC = () => {
     return ayah.text.includes(q);
   });
 
+  // توليد تقرير تجويدي شامل لجميع آيات سورة يس (83 آية) لضمان ظهور كافة الأحكام بالتفصيل
+  const fullSurahReport = useMemo(() => {
+    return generateTajweedReport(SURAH_YASIN);
+  }, []);
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -26,13 +33,13 @@ export const SurahYasinView: React.FC = () => {
               <span className="p-1.5 bg-amber-400/20 text-amber-300 rounded-lg border border-amber-400/30">
                 <BookOpen className="w-4 h-4" />
               </span>
-              <span className="text-xs font-bold text-amber-200">القرآن الكريم</span>
+              <span className="text-xs font-bold text-amber-200">القرآن الكريم والتجويد</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black font-quran text-amber-300">
-              سُورَةُ يس (كاملة ومشكولة)
+              سُورَةُ يس (التدقيق الشامل لكافة الأحكام)
             </h2>
             <p className="text-xs sm:text-sm text-emerald-100/80 mt-1">
-              مكية • عدد آياتها 83 آية • قلب القرآن الكريم
+              مكية • عدد آياتها 83 آية • عرض تفصيلي لكافة أحكام التجويد في السورة
             </p>
           </div>
 
@@ -65,8 +72,25 @@ export const SurahYasinView: React.FC = () => {
         onActiveAyahChange={setHighlightedAyah}
       />
 
+      {/* بطاقة تقرير التجويد التفصيلي الشامل لكافة آيات السورة */}
+      <TajweedBreakdownCard report={fullSurahReport} compact={false} />
+
       {/* Verses Grid/List */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-emerald-100 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+          <h3 className="font-extrabold text-sm sm:text-base text-stone-900">
+            {highlightedAyah ? `عرض الآية رقم (${highlightedAyah})` : 'آيات السورة الكريمة'}
+          </h3>
+          {highlightedAyah && (
+            <button 
+              onClick={() => setHighlightedAyah(null)}
+              className="text-xs text-emerald-700 hover:underline font-bold cursor-pointer"
+            >
+              عرض كافة الآيات
+            </button>
+          )}
+        </div>
+
         {filteredVerses.length === 0 ? (
           <div className="py-10 text-center text-stone-400 text-xs">
             لا توجد آيات مطابقة للبحث
