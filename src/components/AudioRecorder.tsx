@@ -78,7 +78,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     rawBase64Ref.current = null;
 
     try {
-      // طلب إذن الميكروفون بتهيئة صريحة
+      // طلب إذن الميكروفون بتهيئة صريحة ونقاء عالٍ
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: { 
           echoCancellation: true, 
@@ -89,7 +89,8 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       
       mediaStreamRef.current = stream;
       
-      const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
+      // تفضيل صيغة WAV أولاً لنقاء الصوت ودقة مخارج الحروف، ثم البدائل الأخرى
+      const mimeTypes = ['audio/wav', 'audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
       let selectedMime = '';
       for (const m of mimeTypes) {
         if (MediaRecorder.isTypeSupported(m)) {
@@ -140,14 +141,13 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
     const recorder = mediaRecorderRef.current;
     if (recorder && recorder.state === 'recording') {
-      // إجبار المسجل على طلب البيانات المتبقية فوراً قبل التوقف لمنع فقدان الحزمة الأولى
       try {
         recorder.requestData();
       } catch (e) {}
 
       recorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { 
-          type: recorder.mimeType || 'audio/webm' 
+          type: recorder.mimeType || 'audio/wav' 
         });
 
         if (audioBlob.size === 0) {
