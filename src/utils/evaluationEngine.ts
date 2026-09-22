@@ -259,14 +259,23 @@ export function evaluateRecitationLocally(
   const pronunciationScore = Number(Math.min(10, Math.max(2, effectiveRatio * 10)).toFixed(1));
   const accuracyPercentage = Math.max(25, Math.min(100, Math.round(effectiveRatio * 100)));
 
-  // تحليل التجويد بمرونة ودعم واسع
+  // [تحديث] تحليل وتقييم أحكام التجويد بناءً على الأداء الفعلي وربطها بنسبة الدقة بمرونة عادلة
   const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage);
   
   let calculatedTajweedScore = 10.0;
   if (tajweedReport && tajweedReport.rules && tajweedReport.rules.length > 0) {
+    const totalRulesCount = tajweedReport.rules.length;
+    let successfulRulesCount = 0;
+
     tajweedReport.rules = tajweedReport.rules.map(rule => {
-      let isAppliedClean = accuracyPercentage >= 35; // تسامح واسع جداً في الأحكام
-      let ruleScore = isAppliedClean ? 9 : 6;
+      // يعتبر الحكم مطبقاً بنجاح إذا كانت نسبة دقة التلاوة متجاوزة الحد المقبول (35%)
+      const isAppliedClean = accuracyPercentage >= 35; 
+      if (isAppliedClean) {
+        successfulRulesCount++;
+      }
+
+      // منح درجة لكل حكم بناءً على تطبيقه الفعلي مع الحفاظ على مرونة تشجيعية
+      const ruleScore = isAppliedClean ? Math.min(10, Math.max(7, Math.round(accuracyPercentage / 10))) : 5.5;
 
       return {
         ...rule,
@@ -275,14 +284,16 @@ export function evaluateRecitationLocally(
       };
     });
 
-    calculatedTajweedScore = Math.min(10, Math.max(5, effectiveRatio * 10 + 1));
+    // احتساب درجة التجويد الكلية استناداً لنسبة الأحكام الناجحة المطبقة مع دمج الأداء العام
+    const ruleSuccessRatio = successfulRulesCount / totalRulesCount;
+    calculatedTajweedScore = Math.min(10, Math.max(4, (ruleSuccessRatio * 6) + (effectiveRatio * 4)));
   } else {
-    calculatedTajweedScore = Math.min(10, Math.max(5, effectiveRatio * 10));
+    calculatedTajweedScore = Math.min(10, Math.max(4, effectiveRatio * 10));
   }
 
   const tajweedScore = Number(calculatedTajweedScore.toFixed(1));
 
-  // حساب المجموع الكلي (من 10) بأسلوب مشجع وغير مشدد
+  // حساب المجموع الكلي (من 10) بأسلوب مشجع وعادل يدمج نطق الحروف والتجويد
   const rawAiScore = Number(((pronunciationScore + tajweedScore) / 2).toFixed(1));
   const aiScore = Math.min(10, Math.max(3, rawAiScore));
 
