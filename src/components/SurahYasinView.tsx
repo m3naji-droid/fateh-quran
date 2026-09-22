@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { BookOpen, Search, Sparkles } from 'lucide-react';
 import { SURAH_YASIN } from '../data/surahYasin';
 import { MisharyAyahPlayer } from './MisharyAyahPlayer';
-import { detectTajweedRulesInText } from '../engines/tajweedEngine'; // استدعاء محرك التجويد
+import { detectTajweedRulesInText, generateTajweedReport } from '../engines/tajweedEngine';
+import { TajweedBreakdownCard } from './TajweedBreakdownCard'; // استدعاء المكون الجديد
 
 export const SurahYasinView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,6 +18,15 @@ export const SurahYasinView: React.FC = () => {
     return ayah.text.includes(q);
   });
 
+  // توليد تقرير تجويدي شامل للآيات المعروضة حالياً أو المحددة
+  const activeReport = useMemo(() => {
+    const versesToAnalyze = highlightedAyah 
+      ? SURAH_YASIN.filter(a => a.number === highlightedAyah)
+      : filteredVerses;
+    
+    return generateTajweedReport(versesToAnalyze);
+  }, [filteredVerses, highlightedAyah]);
+
   return (
     <div className="space-y-6">
       {/* Header Banner */}
@@ -30,10 +40,10 @@ export const SurahYasinView: React.FC = () => {
               <span className="text-xs font-bold text-amber-200">القرآن الكريم والتجويد اللوني</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black font-quran text-amber-300">
-              سُورَةُ يس (كاملة ومشكولة مع الأحكام)
+              سُورَةُ يس (كاملة ومشكولة مع التدقيق الآلي)
             </h2>
             <p className="text-xs sm:text-sm text-emerald-100/80 mt-1">
-              مكية • عدد آياتها 83 آية • تمييز أحكام التجويد بالألوان التفاعلية
+              مكية • عدد آياتها 83 آية • فحص أحكام التجويد والتقييم الذكي
             </p>
           </div>
 
@@ -66,8 +76,25 @@ export const SurahYasinView: React.FC = () => {
         onActiveAyahChange={setHighlightedAyah}
       />
 
+      {/* بطاقة تقرير التجويد التفصيلي الشامل (تم إضافتها هنا) */}
+      <TajweedBreakdownCard report={activeReport} compact={false} />
+
       {/* Verses Grid/List with Tajweed Color Highlighting */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-emerald-100 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+          <h3 className="font-extrabold text-sm sm:text-base text-stone-900">
+            {highlightedAyah ? `عرض الآية رقم (${highlightedAyah})` : 'آيات السورة الكريمة'}
+          </h3>
+          {highlightedAyah && (
+            <button 
+              onClick={() => setHighlightedAyah(null)}
+              className="text-xs text-emerald-700 hover:underline font-bold cursor-pointer"
+            >
+              عرض كافة الآيات
+            </button>
+          )}
+        </div>
+
         {filteredVerses.length === 0 ? (
           <div className="py-10 text-center text-stone-400 text-xs">
             لا توجد آيات مطابقة للبحث
@@ -75,7 +102,6 @@ export const SurahYasinView: React.FC = () => {
         ) : (
           <div className="space-y-4">
             {filteredVerses.map((ayah) => {
-              // استخراج الأحكام وألوانها لكل آية بشكل تلقائي
               const ayahRules = detectTajweedRulesInText(ayah.text, ayah.number);
 
               return (
