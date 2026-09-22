@@ -245,15 +245,13 @@ export function evaluateRecitationLocally(
   const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage);
   
   let calculatedTajweedScore = 10.0;
-  
-  // استخدام allRules المتاحة في المحرك لتجنب خطأ الـ Build
   const rulesList = tajweedReport.allRules || [];
   
   if (tajweedReport && rulesList.length > 0) {
     const totalRulesCount = rulesList.length;
     let successfulRulesCount = 0;
 
-    rulesList.forEach(rule => {
+    rulesList.forEach(() => {
       const isAppliedClean = accuracyPercentage >= 40; 
       if (isAppliedClean) successfulRulesCount++;
     });
