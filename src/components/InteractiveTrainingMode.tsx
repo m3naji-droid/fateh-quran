@@ -254,7 +254,7 @@ export const InteractiveTrainingMode: React.FC<InteractiveTrainingModeProps> = (
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xl sm:text-2xl font-black text-emerald-950">
-                مُخْتَبَرُ التَّدْرِيبِ وَالتَّرْدِيدِ التَّفَاعُلِي
+                مُخْتَبَرُ التَّدْرِيبِ وَالتَّرْدِيدِ التَّفَاعُلِي
               </h2>
               <span className="text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300/80 px-2.5 py-0.5 rounded-full">
                 اسمع وردّد وصحّح
