@@ -3,26 +3,23 @@ import { WordEvaluation, WordStatus } from '../types';
 import { analyzeTajweedForAyahs, TajweedAnalysisReport } from './tajweedEngine';
 
 /**
- * [معدل] تطبيع نظيف يحافظ على كل حرف ومخرجه دون دمج الحروف ببعضها، مع إزالة التشكيل فقط للمطابقة الأساسية
+ * تطبيع نظيف يحافظ على كل حرف ومخرجه دون دمج الحروف، مع إزالة التشكيل فقط
  */
 function normalizePreservingLetters(text: string): string {
   if (!text) return '';
-  // إزالة التشكيل فقط وعدم دمج الحروف (نحافظ على الألف والهمزات والياءات كما نطقها الطالب)
   return text.trim().replace(/[\u064b-\u0652]/g, '');
 }
 
 /**
- * دالة استخراج وتفصيل الحروف مع حركاتها بدقة تامة لكل حرف على حدة
+ * استخراج وتفصيل الحروف مع حركاتها بدقة لكل حرف على حدة
  */
 function extractLettersWithVowels(text: string): { baseLetter: string; vowel: string }[] {
   const result: { baseLetter: string; vowel: string }[] = [];
   let i = 0;
   while (i < text.length) {
     const char = text[i];
-    // التحقق من الحروف العربية بدقة دون دمجها
     if (/[\u0621-\u064A]/.test(char)) {
-      const base = char; // الاحتفاظ بالحرف كما هو تماماً دون أي استبدال أو دمج
-      
+      const base = char; 
       let vowel = '';
       if (i + 1 < text.length && /[\u064B-\u0652]/.test(text[i + 1])) {
         vowel = text[i + 1];
@@ -36,7 +33,7 @@ function extractLettersWithVowels(text: string): { baseLetter: string; vowel: st
 }
 
 /**
- * دالة مطابقة دقيقة تقارن كل حرف على حده مع تسامح طفيف في التشكيل فقط
+ * مطابقة دقيقة تقارن كل حرف على حده
  */
 function preciseLetterMatchingScore(expectedVoweled: string, spokenWord: string): number {
   const expectedLetters = extractLettersWithVowels(expectedVoweled);
@@ -49,19 +46,15 @@ function preciseLetterMatchingScore(expectedVoweled: string, spokenWord: string)
 
   for (let i = 0; i < totalLetters; i++) {
     if (i >= spokenLetters.length) break;
-    
     const exp = expectedLetters[i];
     const spk = spokenLetters[i];
 
-    // اشتراط مطابقة الحرف الأصلي بدقة تامة (لا دمج للحروف)
     if (exp.baseLetter === spk.baseLetter) {
       if (exp.vowel === spk.vowel) {
-        matchedScore += 1.0; // تطابق تام للحرف والحركة
+        matchedScore += 1.0; 
       } else {
-        matchedScore += 0.8; // تطابق الحرف مع اختلاف بسيط في الحركة
+        matchedScore += 0.8; 
       }
-    } else {
-      matchedScore += 0.0; // اختلاف الحرف يعني عدم التطابق لهذا الحرف
     }
   }
 
@@ -73,7 +66,6 @@ function cleanRecitationPrefixes(words: string[]): string[] {
   if (!words || words.length === 0) return words;
 
   let remainingWords = words.map(w => w.trim()).filter(Boolean);
-  
   const prefixKeywords = new Set([
     "اعوذ", "بالله", "من", "الشيطان", "الرجيم", 
     "بسم", "الله", "الرحمن", "الرحيم", 
@@ -105,7 +97,7 @@ export interface EvaluationResult {
   accuracyPercentage: number;
   aiScore: number;             
   tajweedScore: number;          
-  pronunciationScore: number;  
+  pronunciationScore: number;   
   tajweedReport: TajweedAnalysisReport;
   wordEvaluations: WordEvaluation[];
   transcribedText: string;
@@ -178,7 +170,6 @@ export function evaluateRecitationLocally(
       }
 
       const currentSpoken = spokenWords[spokenIdx];
-      // فحص الحروف بدقة مستقلة لكل حرف
       const letterMatchRatio = preciseLetterMatchingScore(expected.voweled, currentSpoken);
       
       let status: WordStatus = 'missing';
@@ -254,21 +245,17 @@ export function evaluateRecitationLocally(
   const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage);
   
   let calculatedTajweedScore = 10.0;
-  if (tajweedReport && tajweedReport.rules && tajweedReport.rules.length > 0) {
-    const totalRulesCount = tajweedReport.rules.length;
+  
+  // استخدام allRules المتاحة في المحرك لتجنب خطأ الـ Build
+  const rulesList = tajweedReport.allRules || [];
+  
+  if (tajweedReport && rulesList.length > 0) {
+    const totalRulesCount = rulesList.length;
     let successfulRulesCount = 0;
 
-    tajweedReport.rules = tajweedReport.rules.map(rule => {
+    rulesList.forEach(rule => {
       const isAppliedClean = accuracyPercentage >= 40; 
       if (isAppliedClean) successfulRulesCount++;
-
-      const ruleScore = isAppliedClean ? Math.min(10, Math.max(7, Math.round(accuracyPercentage / 10))) : 5.0;
-
-      return {
-        ...rule,
-        isApplied: isAppliedClean,
-        score: ruleScore
-      };
     });
 
     const ruleSuccessRatio = successfulRulesCount / totalRulesCount;
@@ -296,7 +283,7 @@ export function evaluateRecitationLocally(
     accuracyPercentage,
     aiScore,              
     tajweedScore,          
-    pronunciationScore,    
+    pronunciationScore,     
     tajweedReport: {
       ...tajweedReport,
       overallTajweedScore: tajweedScore
