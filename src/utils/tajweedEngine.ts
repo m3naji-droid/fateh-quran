@@ -263,3 +263,13 @@ export function analyzeTajweedForAyahs(
     wordEvaluations
   };
 }
+
+/**
+ * دالة توافقية مطلوبة لملف SurahYasinView.tsx لمنع أخطاء البناء
+ */
+export function generateTajweedReport(surahData: any[]): TajweedAnalysisReport {
+  const start = surahData[0]?.number || 1;
+  const end = surahData[surahData.length - 1]?.number || 83;
+  const fullText = surahData.map(a => a.text).join(' ');
+  return analyzeTajweedForAyahs(start, end, 95, fullText);
+}
