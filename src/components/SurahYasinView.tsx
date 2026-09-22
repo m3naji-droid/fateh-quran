@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BookOpen, Search, Sparkles } from 'lucide-react';
 import { SURAH_YASIN } from '../data/surahYasin';
 import { MisharyAyahPlayer } from './MisharyAyahPlayer';
+import { detectTajweedRulesInText } from '../engines/tajweedEngine'; // استدعاء محرك التجويد
 
 export const SurahYasinView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -26,13 +27,13 @@ export const SurahYasinView: React.FC = () => {
               <span className="p-1.5 bg-amber-400/20 text-amber-300 rounded-lg border border-amber-400/30">
                 <BookOpen className="w-4 h-4" />
               </span>
-              <span className="text-xs font-bold text-amber-200">القرآن الكريم</span>
+              <span className="text-xs font-bold text-amber-200">القرآن الكريم والتجويد اللوني</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black font-quran text-amber-300">
-              سُورَةُ يس (كاملة ومشكولة)
+              سُورَةُ يس (كاملة ومشكولة مع الأحكام)
             </h2>
             <p className="text-xs sm:text-sm text-emerald-100/80 mt-1">
-              مكية • عدد آياتها 83 آية • قلب القرآن الكريم
+              مكية • عدد آياتها 83 آية • تمييز أحكام التجويد بالألوان التفاعلية
             </p>
           </div>
 
@@ -53,7 +54,7 @@ export const SurahYasinView: React.FC = () => {
       {/* Basmalah Card */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-emerald-100 shadow-xs text-center">
         <p className="text-2xl sm:text-3xl font-quran text-emerald-950 tracking-wider">
-          بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+          بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
         </p>
       </div>
 
@@ -65,7 +66,7 @@ export const SurahYasinView: React.FC = () => {
         onActiveAyahChange={setHighlightedAyah}
       />
 
-      {/* Verses Grid/List */}
+      {/* Verses Grid/List with Tajweed Color Highlighting */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-emerald-100 shadow-xs space-y-4">
         {filteredVerses.length === 0 ? (
           <div className="py-10 text-center text-stone-400 text-xs">
@@ -73,28 +74,50 @@ export const SurahYasinView: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredVerses.map((ayah) => (
-              <div
-                key={ayah.number}
-                onClick={() => setHighlightedAyah(ayah.number)}
-                className={`p-4 rounded-2xl transition-all cursor-pointer border ${
-                  highlightedAyah === ayah.number
-                    ? 'bg-amber-50/80 border-amber-300 shadow-xs'
-                    : 'bg-stone-50/60 hover:bg-emerald-50/50 border-stone-100'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 text-right">
-                    <p className="text-xl sm:text-2xl font-quran text-stone-900 leading-loose">
-                      {ayah.text}
-                      <span className="inline-flex items-center justify-center w-7 h-7 mx-2 rounded-full border border-amber-500/60 text-amber-800 text-xs font-mono font-bold bg-amber-50 align-middle">
-                        {ayah.number}
-                      </span>
-                    </p>
+            {filteredVerses.map((ayah) => {
+              // استخراج الأحكام وألوانها لكل آية بشكل تلقائي
+              const ayahRules = detectTajweedRulesInText(ayah.text, ayah.number);
+
+              return (
+                <div
+                  key={ayah.number}
+                  onClick={() => setHighlightedAyah(ayah.number)}
+                  className={`p-5 rounded-2xl transition-all cursor-pointer border ${
+                    highlightedAyah === ayah.number
+                      ? 'bg-amber-50/80 border-amber-300 shadow-xs'
+                      : 'bg-stone-50/60 hover:bg-emerald-50/50 border-stone-100'
+                  }`}
+                >
+                  <div className="flex flex-col gap-3">
+                    {/* نص الآية */}
+                    <div className="text-right">
+                      <p className="text-xl sm:text-2xl font-quran text-stone-900 leading-loose">
+                        {ayah.text}
+                        <span className="inline-flex items-center justify-center w-7 h-7 mx-2 rounded-full border border-amber-500/60 text-amber-800 text-xs font-mono font-bold bg-amber-50 align-middle">
+                          {ayah.number}
+                        </span>
+                      </p>
+                    </div>
+
+                    {/* شريط شارات الأحكام التجويدية الملونة أسفل كل آية */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-stone-200/60">
+                      <span className="text-[10px] font-bold text-stone-500 ml-1">الأحكام:</span>
+                      {ayahRules.map((rule) => (
+                        <span
+                          key={rule.id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium text-white shadow-xs"
+                          style={{ backgroundColor: rule.colorCode }}
+                          title={rule.description}
+                        >
+                          <Sparkles className="w-2.5 h-2.5 opacity-80" />
+                          {rule.ruleName} ({rule.word})
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
