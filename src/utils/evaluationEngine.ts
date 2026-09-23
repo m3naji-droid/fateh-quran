@@ -3,65 +3,46 @@ import { WordEvaluation, WordStatus } from '../types';
 import { analyzeTajweedForAyahs, TajweedAnalysisReport } from './tajweedEngine';
 
 /**
- * تطبيع نظيف يحافظ على كل حرف ومخرجه دون دمج الحروف، مع إزالة التشكيل فقط
+ * تطبيع عميق وشامل لتوحيد الحروف وإزالة التشكيل للمقارنة مع النصوص المنطوقة (STT)
  */
-function normalizePreservingLetters(text: string): string {
+function normalizeArabic(text: string): string {
   if (!text) return '';
-  return text.trim().replace(/[\u064b-\u0652]/g, '');
+  return text
+    .trim()
+    .replace(/[\u064b-\u0652]/g, '') // إزالة التشكيل
+    .replace(/[أإآٱ]/g, 'ا')        // توحيد أشكال الألف
+    .replace(/ة/g, 'ه')            // توحيد التتاء المربوطة والهاء
+    .replace(/ى/g, 'ي');           // توحيد الألف المقصورة والياء
 }
 
 /**
- * استخراج وتفصيل الحروف مع حركاتها بدقة لكل حرف على حدة
+ * حساب نسبة التطابق بين الكلمة المتوقعة والكلمة المنطوقة بناءً على الحروف الأساسية
  */
-function extractLettersWithVowels(text: string): { baseLetter: string; vowel: string }[] {
-  const result: { baseLetter: string; vowel: string }[] = [];
-  let i = 0;
-  while (i < text.length) {
-    const char = text[i];
-    if (/[\u0621-\u064A]/.test(char)) {
-      const base = char; 
-      let vowel = '';
-      if (i + 1 < text.length && /[\u064B-\u0652]/.test(text[i + 1])) {
-        vowel = text[i + 1];
-        i++;
-      }
-      result.push({ baseLetter: base, vowel });
+function calculateWordMatchRatio(expectedVoweled: string, spokenWord: string): number {
+  const normExpected = normalizeArabic(expectedVoweled);
+  const normSpoken = normalizeArabic(spokenWord);
+
+  if (!normExpected || !normSpoken) return 0;
+
+  // تطابق تام للنص المطبع
+  if (normExpected === normSpoken) return 1.0;
+
+  // مطابقة جزئية باستخدام خوارزمية بسيطة لتشابه الحروف
+  let matches = 0;
+  const maxLen = Math.max(normExpected.length, normSpoken.length);
+  
+  for (let i = 0; i < Math.min(normExpected.length, normSpoken.length); i++) {
+    if (normExpected[i] === normSpoken[i]) {
+      matches++;
     }
-    i++;
   }
-  return result;
+
+  return matches / maxLen;
 }
 
 /**
- * مطابقة دقيقة تقارن كل حرف على حده
+ * تنظيف الكلمات الاستعشادية أو البسملة في بداية التسجيل
  */
-function preciseLetterMatchingScore(expectedVoweled: string, spokenWord: string): number {
-  const expectedLetters = extractLettersWithVowels(expectedVoweled);
-  const spokenLetters = extractLettersWithVowels(spokenWord);
-
-  if (expectedLetters.length === 0) return 0;
-
-  let matchedScore = 0;
-  const totalLetters = expectedLetters.length;
-
-  for (let i = 0; i < totalLetters; i++) {
-    if (i >= spokenLetters.length) break;
-    const exp = expectedLetters[i];
-    const spk = spokenLetters[i];
-
-    if (exp.baseLetter === spk.baseLetter) {
-      if (exp.vowel === spk.vowel) {
-        matchedScore += 1.0; 
-      } else {
-        matchedScore += 0.8; 
-      }
-    }
-  }
-
-  const rawRatio = matchedScore / totalLetters;
-  return Math.max(0, Math.min(1, rawRatio));
-}
-
 function cleanRecitationPrefixes(words: string[]): string[] {
   if (!words || words.length === 0) return words;
 
@@ -73,11 +54,11 @@ function cleanRecitationPrefixes(words: string[]): string[] {
   ]);
 
   while (remainingWords.length > 0) {
-    const currentWordNormalized = normalizePreservingLetters(remainingWords[0]);
+    const currentWordNormalized = normalizeArabic(remainingWords[0]);
     let isPrefix = false;
 
     for (const kw of prefixKeywords) {
-      if (currentWordNormalized === normalizePreservingLetters(kw)) {
+      if (currentWordNormalized === normalizeArabic(kw)) {
         isPrefix = true;
         break;
       }
@@ -170,40 +151,41 @@ export function evaluateRecitationLocally(
       }
 
       const currentSpoken = spokenWords[spokenIdx];
-      const letterMatchRatio = preciseLetterMatchingScore(expected.voweled, currentSpoken);
+      const matchRatio = calculateWordMatchRatio(expected.voweled, currentSpoken);
       
       let status: WordStatus = 'missing';
       let recWord: string | undefined = undefined;
 
-      if (letterMatchRatio >= 0.70) {
+      if (matchRatio >= 0.65) {
         status = 'correct';
         recWord = currentSpoken;
         spokenIdx++;
         correctCount++;
         lastMatchedIndex = i;
         totalLetterScoreAccumulator += 1.0;
-      } else if (letterMatchRatio >= 0.25) {
+      } else if (matchRatio >= 0.30) {
         status = 'mispronounced';
         recWord = currentSpoken;
         spokenIdx++;
         mispronouncedCount++;
         lastMatchedIndex = i;
-        totalLetterScoreAccumulator += letterMatchRatio; 
+        totalLetterScoreAccumulator += matchRatio; 
       } else {
-        let bestSubMatchRatio = letterMatchRatio;
+        // فحص النافذة البديلة (Window Search) لتجاوز التقديم أو التأخير البسيط
+        let bestSubMatchRatio = matchRatio;
         let bestSubIdx = -1;
         const windowSize = 2;
         
         for (let w = 1; w <= windowSize && (spokenIdx + w) < spokenWords.length; w++) {
-          const ratio = preciseLetterMatchingScore(expected.voweled, spokenWords[spokenIdx + w]);
+          const ratio = calculateWordMatchRatio(expected.voweled, spokenWords[spokenIdx + w]);
           if (ratio > bestSubMatchRatio) {
             bestSubMatchRatio = ratio;
             bestSubIdx = spokenIdx + w;
           }
         }
 
-        if (bestSubIdx !== -1 && bestSubMatchRatio >= 0.25) {
-          status = bestSubMatchRatio >= 0.70 ? 'correct' : 'mispronounced';
+        if (bestSubIdx !== -1 && bestSubMatchRatio >= 0.30) {
+          status = bestSubMatchRatio >= 0.65 ? 'correct' : 'mispronounced';
           recWord = spokenWords[bestSubIdx];
           spokenIdx = bestSubIdx + 1;
           if (status === 'correct') correctCount++;
@@ -212,6 +194,8 @@ export function evaluateRecitationLocally(
           totalLetterScoreAccumulator += bestSubMatchRatio;
         } else {
           status = 'missing';
+          // تحريك المؤشر بحذر لمنع تجمد الحلقة في حال كانت الكلمة خاطئة تماماً
+          spokenIdx++; 
         }
       }
 
@@ -279,9 +263,9 @@ export function evaluateRecitationLocally(
 
   return {
     accuracyPercentage,
-    aiScore,              
+    aiScore,             
     tajweedScore,          
-    pronunciationScore,     
+    pronunciationScore,      
     tajweedReport: {
       ...tajweedReport,
       overallTajweedScore: tajweedScore
