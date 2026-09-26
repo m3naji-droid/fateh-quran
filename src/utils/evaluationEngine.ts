@@ -10,9 +10,9 @@ function normalizeArabic(text: string): string {
   return text
     .trim()
     .replace(/[\u064b-\u0652]/g, '') // إزالة التشكيل
-    .replace(/[أإآٱ]/g, 'ا')        // توحيد أشكال الألف
+    .replace(/[أإآٱ]/g, 'ا')         // توحيد أشكال الألف
     .replace(/ة/g, 'ه')            // توحيد التاء المربوطة والهاء
-    .replace(/ى/g, 'ي');           // توحيد الألف المقصورة والياء
+    .replace(/ى/g, 'ي');            // توحيد الألف المقصورة والياء
 }
 
 /**
@@ -156,25 +156,26 @@ export function evaluateRecitationLocally(
       let status: WordStatus = 'missing';
       let recWord: string | undefined = undefined;
 
-      if (matchRatio >= 0.65) {
+      // [تعديل التساهل]: تخفيض عتبة القبول للكلمة الصحيحة إلى 0.45 بدلاً من 0.65 لتجنب اعتبار الأخطاء الإملائية البسيطة خطأً
+      if (matchRatio >= 0.45) {
         status = 'correct';
         recWord = currentSpoken;
         spokenIdx++;
         correctCount++;
         lastMatchedIndex = i;
         totalLetterScoreAccumulator += 1.0;
-      } else if (matchRatio >= 0.30) {
+      } else if (matchRatio >= 0.20) { // [تعديل التساهل]: خفض عتبة النطق الخاطئ المتقارب إلى 0.20
         status = 'mispronounced';
         recWord = currentSpoken;
         spokenIdx++;
         mispronouncedCount++;
         lastMatchedIndex = i;
-        totalLetterScoreAccumulator += matchRatio; 
+        totalLetterScoreAccumulator += Math.max(0.6, matchRatio + 0.3); // منح دعم إضافي للكلمات المتقاربة
       } else {
         // فحص النافذة البديلة (Window Search) لتجاوز التقديم أو التأخير البسيط
         let bestSubMatchRatio = matchRatio;
         let bestSubIdx = -1;
-        const windowSize = 2;
+        const windowSize = 3; // [تعديل التساهل]: توسيع نافذة البحث قليلاً لمساعدة الطالب في حال تخطي كلمة
         
         for (let w = 1; w <= windowSize && (spokenIdx + w) < spokenWords.length; w++) {
           const ratio = calculateWordMatchRatio(expected.voweled, spokenWords[spokenIdx + w]);
@@ -184,17 +185,16 @@ export function evaluateRecitationLocally(
           }
         }
 
-        if (bestSubIdx !== -1 && bestSubMatchRatio >= 0.30) {
-          status = bestSubMatchRatio >= 0.65 ? 'correct' : 'mispronounced';
+        if (bestSubIdx !== -1 && bestSubMatchRatio >= 0.25) {
+          status = bestSubMatchRatio >= 0.45 ? 'correct' : 'mispronounced';
           recWord = spokenWords[bestSubIdx];
           spokenIdx = bestSubIdx + 1;
           if (status === 'correct') correctCount++;
           else mispronouncedCount++;
           lastMatchedIndex = i;
-          totalLetterScoreAccumulator += bestSubMatchRatio;
+          totalLetterScoreAccumulator += bestSubMatchRatio >= 0.45 ? 1.0 : bestSubMatchRatio;
         } else {
           status = 'missing';
-          // تحريك المؤشر بحذر لمنع تجمد الحلقة في حال كانت الكلمة خاطئة تماماً
           spokenIdx++; 
         }
       }
@@ -221,10 +221,13 @@ export function evaluateRecitationLocally(
 
   const basePronunciationRatio = totalLetterScoreAccumulator / Math.max(1, totalEvaluatedWordsCount);
   const completionRatio = Math.min(1.0, (lastMatchedIndex + 1) / Math.max(1, expectedQuranWords.length));
-  const effectiveRatio = Math.min(1.0, basePronunciationRatio * Math.max(0.4, completionRatio));
+  
+  // [تعديل التساهل]: رفع الحد الأدنى للعلاقة الفعالة لمنع إعطاء درجات متدنية جداً عند وجود تفاوت بسيط
+  const effectiveRatio = Math.min(1.0, Math.max(basePronunciationRatio, completionRatio * 0.85));
 
-  const pronunciationScore = Number(Math.min(10, Math.max(1, effectiveRatio * 10)).toFixed(1));
-  const accuracyPercentage = Math.max(15, Math.min(100, Math.round(effectiveRatio * 100)));
+  // [تعديل التساهل]: رفع النسبة الدنيا للتقييم لتبدأ من 30 بدلاً من 10 تشجيعاً للطالب
+  const pronunciationScore = Number(Math.min(10, Math.max(3, effectiveRatio * 10)).toFixed(1));
+  const accuracyPercentage = Math.max(30, Math.min(100, Math.round(effectiveRatio * 100)));
 
   const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage);
   
@@ -236,27 +239,27 @@ export function evaluateRecitationLocally(
     let successfulRulesCount = 0;
 
     rulesList.forEach(() => {
-      const isAppliedClean = accuracyPercentage >= 40; 
+      const isAppliedClean = accuracyPercentage >= 35; // [تعديل التساهل]: تسهيل شرط احتساب الأحكام التجويدية
       if (isAppliedClean) successfulRulesCount++;
     });
 
     const ruleSuccessRatio = successfulRulesCount / totalRulesCount;
-    calculatedTajweedScore = Math.min(10, Math.max(4, (ruleSuccessRatio * 6) + (effectiveRatio * 4)));
+    calculatedTajweedScore = Math.min(10, Math.max(5, (ruleSuccessRatio * 7) + (effectiveRatio * 3)));
   } else {
-    calculatedTajweedScore = Math.min(10, Math.max(4, effectiveRatio * 10));
+    calculatedTajweedScore = Math.min(10, Math.max(5, effectiveRatio * 10));
   }
 
   const tajweedScore = Number(calculatedTajweedScore.toFixed(1));
   const rawAiScore = Number(((pronunciationScore + tajweedScore) / 2).toFixed(1));
-  const aiScore = Math.min(10, Math.max(2, rawAiScore));
+  const aiScore = Math.min(10, Math.max(4, rawAiScore));
 
   let summaryFeedback = "";
-  if (accuracyPercentage >= 75) {
-    summaryFeedback = "أحسنت! تلاوة طيبة ومسترسلة تدل على حفظ وفهم ممتازين.";
-  } else if (accuracyPercentage >= 45) {
-    summaryFeedback = "بداية موفقة وتلاوة جميلة، استمر في التدريب وستتحسن أكثر.";
+  if (accuracyPercentage >= 70) {
+    summaryFeedback = "أحسنت! تلاوة ممتازة ومباركة، استمر على هذا المستوى الرائع.";
+  } else if (accuracyPercentage >= 40) {
+    summaryFeedback = "بداية طيبة وجميلة، استمر في التدريب وستصل للإتقان الكامل قريباً.";
   } else {
-    summaryFeedback = "محاولة جيدة، حاول القراءة بهدوء وبجانب المصحف لضبط الكلمات.";
+    summaryFeedback = "محاولة تشجيعية ممتازة، اقرأ ببطء وركز في الكلمات وستتحسن تلاوتك كثيراً.";
   }
 
   const missingCount = wordEvaluations.filter(w => w.status === 'missing').length;
