@@ -12,14 +12,14 @@ export interface TajweedRuleItem {
   id: string;
   category: TajweedCategory;
   categoryLabel: string;
-  ruleName: string;
-  word: string;
-  ayahNumber: number;
+  ruleName: string;         // نوع الحكم بالتفصيل (مثل: قلقلة حرف الباء)
+  word: string;             // الكلمة التي يوجد بها موضع الحكم
+  ayahNumber: number;       // موضع الآية
   description: string;
   tip: string;
   status: 'mastered' | 'warning' | 'needs_practice';
   acousticCheck: string;
-  colorCode: string; // اللون المخصص للحكم لعرضه في شاشة الآيات
+  colorCode: string;        // اللون المخصص للحكم لعرضه في شاشة الآيات
 }
 
 export interface LetterEvaluation {
@@ -84,7 +84,7 @@ function getTajweedColorCode(category: TajweedCategory, ruleName: string): strin
 }
 
 /**
- * تحليل وفحص الآيات واستخراج الأحكام مع ألوانها الخاصة
+ * تحليل وفحص الآيات واستخراج الأحكام مع تحديد موضعها (الكلمة ورقم الآية) ونوعها بدقة
  */
 export function detectTajweedRulesInText(text: string, ayahNumber: number): TajweedRuleItem[] {
   const rules: TajweedRuleItem[] = [];
@@ -140,7 +140,7 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
           ruleName,
           word: currentWord,
           ayahNumber,
-          description: `قلقلة حرف (${qLetter}) عند السكون`,
+          description: `قلقلة حرف (${qLetter}) عند السكون في موضع الكلمة`,
           tip: 'اضطرب بالمخرج دون شائبة حركة.',
           acousticCheck: `قلقلة ${qLetter}`,
           colorCode: getTajweedColorCode('qalqala', ruleName)
@@ -155,10 +155,10 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
       id: `default_tajweed_${ayahNumber}`,
       category: 'madd',
       categoryLabel: 'أحكام التجويد العامة',
-      ruleName: 'تلاوة صحيحة',
+      ruleName: 'تلاوة صحيحة مرسلة',
       word: words[0] || 'الآية',
       ayahNumber,
-      description: 'مراعاة إخراج الحروف من مخارجها',
+      description: 'مراعاة إخراج الحروف من مخارجها الأصلية',
       tip: 'التأني وإعطاء الحروف حقها.',
       status: 'mastered',
       acousticCheck: 'سلامة النطق',
