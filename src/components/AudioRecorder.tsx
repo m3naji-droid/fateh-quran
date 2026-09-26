@@ -78,19 +78,26 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
     rawBase64Ref.current = null;
 
     try {
-      // طلب إذن الميكروفون بتهيئة صريحة ونقاء عالٍ
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { 
-          echoCancellation: true, 
+      // إعدادات محسنة لضمان استقرار الصوت على الآيفون والمتصفحات المحمولة
+      const constraints: MediaStreamConstraints = {
+        audio: {
+          echoCancellation: true,
           noiseSuppression: true,
-          sampleRate: 44100 
-        } 
-      });
-      
+          autoGainControl: true,
+        }
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       mediaStreamRef.current = stream;
       
-      // تفضيل صيغة WAV أولاً لنقاء الصوت ودقة مخارج الحروف، ثم البدائل الأخرى
-      const mimeTypes = ['audio/wav', 'audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+      // ترتيب الصيغ بما يتوافق بسلاسة مع نظام iOS (Safari) والمنصات الأخرى
+      const mimeTypes = [
+        'audio/mp4',
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/ogg',
+        'audio/wav'
+      ];
       let selectedMime = '';
       for (const m of mimeTypes) {
         if (MediaRecorder.isTypeSupported(m)) {
@@ -99,7 +106,8 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
         }
       }
 
-      const mediaRecorder = new MediaRecorder(stream, selectedMime ? { mimeType: selectedMime } : undefined);
+      const mediaRecorderOptions: MediaRecorderOptions = selectedMime ? { mimeType: selectedMime } : {};
+      const mediaRecorder = new MediaRecorder(stream, mediaRecorderOptions);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -108,7 +116,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
         }
       };
 
-      mediaRecorder.start(100); // تجميع البيانات كل 100ms لضمان التقاط الصوت بدقة من اللحظة الأولى
+      mediaRecorder.start(250); // تجميع البيانات كل 250ms لضمان الاستقرار على أجهزة آيفون
       setRecordingState('recording');
       setRecordDuration(0);
 
@@ -123,7 +131,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
       }
     } catch (err: any) {
       console.error('Microphone error:', err);
-      setMicPermissionError('يرجى السماح بصلاحية الميكروفون في المتصفح لتسجيل التلاوة.');
+      setMicPermissionError('يرجى السماح بصلاحية الميكروفون في المتصفح وتجنب استخدام سماعات البلوتوث الضعيفة.');
     }
   };
 
@@ -147,7 +155,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
 
       recorder.onstop = () => {
         const audioBlob = new Blob(audioChunksRef.current, { 
-          type: recorder.mimeType || 'audio/wav' 
+          type: recorder.mimeType || 'audio/mp4' 
         });
 
         if (audioBlob.size === 0) {
@@ -265,7 +273,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({
             </button>
             <div>
               <p className="text-sm font-bold text-emerald-950">انقر لبدء تسجيل التلاوة</p>
-              <p className="text-xs text-stone-500 mt-0.5">تأكد من الهدوء حولك وقراءة الآيات بتمهل وترتيل</p>
+              <p className="text-xs text-stone-500 mt-0.5">تأكد من الهدوء وعدم استخدام سماعات البلوتوث لضمان صفاء الصوت</p>
             </div>
           </div>
         )}
