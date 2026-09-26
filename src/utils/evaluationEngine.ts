@@ -1,4 +1,4 @@
-import { cleanArabicText, getVerseWords, QuranicWord } from '../data/surahYasin';
+import { getVerseWords, QuranicWord } from '../data/surahYasin';
 import { WordEvaluation, WordStatus } from '../types';
 import { analyzeTajweedForAyahs, TajweedAnalysisReport } from './tajweedEngine';
 
@@ -11,7 +11,7 @@ function normalizeArabic(text: string): string {
     .trim()
     .replace(/[\u064b-\u0652]/g, '') // إزالة التشكيل
     .replace(/[أإآٱ]/g, 'ا')        // توحيد أشكال الألف
-    .replace(/ة/g, 'ه')            // توحيد التتاء المربوطة والهاء
+    .replace(/ة/g, 'ه')            // توحيد التاء المربوطة والهاء
     .replace(/ى/g, 'ي');           // توحيد الألف المقصورة والياء
 }
 
