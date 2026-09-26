@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, CheckCircle2, AlertTriangle, HelpCircle, BookOpen, Volume2, ShieldCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, CheckCircle2, AlertTriangle, HelpCircle, ChevronDown, ChevronUp, MapPin, Tag } from 'lucide-react';
 import { TajweedAnalysisReport, TajweedCategory } from '../utils/tajweedEngine';
 
 interface TajweedBreakdownCardProps {
@@ -38,14 +38,14 @@ export const TajweedBreakdownCard: React.FC<TajweedBreakdownCardProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-extrabold text-sm sm:text-base text-white">
-                فحص وضبط أحكام التجويد المطبقة
+                فحص وضبط أحكام التجويد ومواضعها
               </h3>
               <span className="text-[10px] font-bold bg-amber-400/20 text-amber-200 px-2.5 py-0.5 rounded-full border border-amber-400/30">
                 تدقيق تجويدي آلي
               </span>
             </div>
             <p className="text-xs text-emerald-100/80 mt-0.5">
-              تحليل أحكام النون والميم الساكنتين، المدود، القلقلة، الغنن والتفخيم
+              تحليل أحكام المدود، القلقلة، الغنن، ومواضعها الدقيقة في الآيات
             </p>
           </div>
         </div>
@@ -132,7 +132,7 @@ export const TajweedBreakdownCard: React.FC<TajweedBreakdownCardProps> = ({
             })}
           </div>
 
-          {/* Rules List */}
+          {/* Rules List with Explicit Position and Rule Type */}
           <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
             {filteredRules.length === 0 ? (
               <div className="text-center py-6 bg-stone-50 rounded-2xl border border-stone-200 text-stone-500 text-xs">
@@ -165,18 +165,14 @@ export const TajweedBreakdownCard: React.FC<TajweedBreakdownCardProps> = ({
                 return (
                   <div
                     key={rule.id}
-                    className="p-3.5 rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-emerald-50/40 transition-colors space-y-1.5"
+                    className="p-3.5 rounded-2xl border border-stone-200 bg-stone-50/70 hover:bg-emerald-50/40 transition-colors space-y-2"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-xs text-stone-900">
-                          {rule.ruleName}
-                        </span>
-                        <span className="text-[11px] font-bold font-quran bg-amber-100 text-amber-950 px-2 py-0.5 rounded-lg border border-amber-200">
-                          «{rule.word}»
-                        </span>
-                        <span className="text-[10px] bg-stone-200 text-stone-700 px-2 py-0.5 rounded-full font-bold">
-                          الآية ({rule.ayahNumber})
+                    {/* Top Row: Rule Name & Status */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                        <span className="font-extrabold text-xs text-emerald-950">
+                          نوع الحكم: <span className="text-emerald-800">{rule.ruleName}</span>
                         </span>
                       </div>
                       <div className="shrink-0">
@@ -184,11 +180,27 @@ export const TajweedBreakdownCard: React.FC<TajweedBreakdownCardProps> = ({
                       </div>
                     </div>
 
-                    <p className="text-xs text-stone-600">
+                    {/* Middle Row: Exact Position (Word & Ayah Number) */}
+                    <div className="flex items-center gap-2 flex-wrap bg-white p-2 rounded-xl border border-stone-200/80">
+                      <div className="flex items-center gap-1 text-[11px] text-stone-500">
+                        <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                        <span>موضع الحكم:</span>
+                      </div>
+                      <span className="text-xs font-bold font-quran bg-amber-100 text-amber-950 px-2.5 py-0.5 rounded-lg border border-amber-200">
+                        الكلمة: «{rule.word}»
+                      </span>
+                      <span className="text-[10px] bg-teal-100 text-teal-900 px-2.5 py-0.5 rounded-full font-bold">
+                        رقم الآية: ({rule.ayahNumber})
+                      </span>
+                    </div>
+
+                    {/* Rule Description */}
+                    <p className="text-xs text-stone-600 px-1">
                       {rule.description}
                     </p>
 
-                    <div className="p-2.5 rounded-xl bg-white border border-emerald-100 text-[11px] text-emerald-900 flex items-start gap-2 mt-1">
+                    {/* Application Tip */}
+                    <div className="p-2.5 rounded-xl bg-white border border-emerald-100 text-[11px] text-emerald-900 flex items-start gap-2">
                       <span className="font-bold text-emerald-700 shrink-0">💡 نصيحة التطبيق:</span>
                       <span>{rule.tip}</span>
                     </div>
