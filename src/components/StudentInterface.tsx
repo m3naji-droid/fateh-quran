@@ -5,7 +5,7 @@ import { getVerseRangeText } from '../data/surahYasin';
 import { AudioRecorder } from './AudioRecorder';
 import { EvaluationModal } from './EvaluationModal';
 import { StudentHistory } from './StudentHistory';
-import { SurahYasinView } from './SurahYasinView';
+import SurahYasinView from './SurahYasinView';
 import { InteractiveTrainingMode } from './InteractiveTrainingMode';
 import { evaluateRecitationLocally, EvaluationResult } from '../utils/evaluationEngine';
 import { saveSubmission, getSubmissions } from '../utils/storage';
