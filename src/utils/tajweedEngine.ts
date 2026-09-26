@@ -12,14 +12,14 @@ export interface TajweedRuleItem {
   id: string;
   category: TajweedCategory;
   categoryLabel: string;
-  ruleName: string;         // نوع الحكم بالتفصيل (مثل: قلقلة حرف الباء)
-  word: string;             // الكلمة التي يوجد بها موضع الحكم
-  ayahNumber: number;       // موضع الآية
+  ruleName: string;         
+  word: string;             
+  ayahNumber: number;       
   description: string;
   tip: string;
   status: 'mastered' | 'warning' | 'needs_practice';
   acousticCheck: string;
-  colorCode: string;        // اللون المخصص للحكم لعرضه في شاشة الآيات
+  colorCode: string;        
 }
 
 export interface LetterEvaluation {
@@ -59,22 +59,16 @@ export interface TajweedAnalysisReport {
 
 const QALQALA_LETTERS = ['ق', 'ط', 'ب', 'ج', 'د'];
 
-/**
- * خريطة الألوان المعتمدة لشاشة العرض (Tajweed Color Palette Map)
- */
 export const TAJWEED_COLOR_MAP: Record<TajweedCategory | string, string> = {
-  madd: '#DC2626',          // أحمر قاني للمدود والمد اللازم
-  ghunnah: '#F97316',       // برتقالي دافئ للغنة المشددة
-  qalqala: '#10B981',       // أخضر زمردي للقلقلة
-  noon_tanween: '#3B82F6',  // أزرق صافي لأحكام النون والتنوين
-  meem_sakina: '#8B5CF6',   // بنفسجي لأحكام الميم الساكنة
-  tafkheem: '#D97706',      // أصفر عسلي للتفخيم
-  default: '#6B7280'        // رمادي افتراضي
+  madd: '#DC2626',          
+  ghunnah: '#F97316',       
+  qalqala: '#10B981',       
+  noon_tanween: '#3B82F6',  
+  meem_sakina: '#8B5CF6',   
+  tafkheem: '#D97706',      
+  default: '#6B7280'        
 };
 
-/**
- * دالة مساعدة لتحديد اللون المناسب بناءً على الفئة واسم الحكم
- */
 function getTajweedColorCode(category: TajweedCategory, ruleName: string): string {
   if (category === 'madd') {
     if (ruleName.includes('لازم')) return TAJWEED_COLOR_MAP.madd;
@@ -83,9 +77,6 @@ function getTajweedColorCode(category: TajweedCategory, ruleName: string): strin
   return TAJWEED_COLOR_MAP[category] || TAJWEED_COLOR_MAP.default;
 }
 
-/**
- * تحليل وفحص الآيات واستخراج الأحكام مع تحديد موضعها (الكلمة ورقم الآية) ونوعها بدقة
- */
 export function detectTajweedRulesInText(text: string, ayahNumber: number): TajweedRuleItem[] {
   const rules: TajweedRuleItem[] = [];
   const words = text ? text.split(/\s+/).filter(Boolean) : [`آية_${ayahNumber}`];
@@ -93,7 +84,6 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
   for (let i = 0; i < words.length; i++) {
     const currentWord = words[i];
 
-    // 1. أحكام المدود
     if (currentWord.includes('ٓ') || currentWord.includes('~')) {
       const isLazim = currentWord.includes('يسٓ') || currentWord.includes('حٓمٓ');
       const ruleName = isLazim ? 'مد لازم حرفي' : 'مد (متصل أو منفصل)';
@@ -112,7 +102,6 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
       });
     }
 
-    // 2. الغنة والميم والنون المشددة
     if (/نّ|مّ/.test(currentWord)) {
       const ruleName = 'غنة مشددة أكمل ما تكون';
       rules.push({
@@ -129,7 +118,6 @@ export function detectTajweedRulesInText(text: string, ayahNumber: number): Tajw
       });
     }
 
-    // 3. أحكام القلقلة
     for (const qLetter of QALQALA_LETTERS) {
       if (new RegExp(`[${qLetter}][ْ\u06E1]|${qLetter}$`).test(currentWord)) {
         const ruleName = `قلقلة حرف ${qLetter}`;
@@ -182,13 +170,13 @@ export function analyzeTajweedForAyahs(
     allRules.push(...detected);
   }
 
+  // تعديل معايير التقييم لتكون متساهلة ومشجعة (بحيث يُحسب الحكم للطالب حتى مع وجود تفاوت بسيط)
   allRules.forEach((rule, idx) => {
-    if (accuracyScore >= 80) {
-      rule.status = 'mastered';
-    } else if (accuracyScore >= 50) {
-      rule.status = idx % 2 === 0 ? 'mastered' : 'warning';
+    if (accuracyScore >= 40) {
+      // إذا حصل الطالب على أداء مقبول (فوق 40)، نعتبر معظم الأحكام متقنة أو ذات تنبيه خفيف للتوجيه فقط
+      rule.status = idx % 4 === 0 ? 'warning' : 'mastered';
     } else {
-      rule.status = idx % 3 === 0 ? 'warning' : 'needs_practice';
+      rule.status = idx % 2 === 0 ? 'warning' : 'needs_practice';
     }
   });
 
@@ -197,12 +185,14 @@ export function analyzeTajweedForAyahs(
   const needsPracticeCount = allRules.filter(r => r.status === 'needs_practice').length;
   const total = Math.max(1, allRules.length);
 
+  // رفع نسبة الإتقان المحسوبة لتكون منصفة ومشجعة للتلاوة
   const tajweedMasteryPercentage = Math.round(
-    ((masteredCount * 1.0 + warningCount * 0.7) / total) * 100
+    ((masteredCount * 1.0 + warningCount * 0.85) / total) * 100
   );
 
-  const pronunciationScore = Number(((Math.max(0, Math.min(100, accuracyScore)) / 100) * 10).toFixed(1));
-  const tajweedScore = Number(((tajweedMasteryPercentage / 100) * 10).toFixed(1));
+  const calculatedAccuracy = Math.max(75, accuracyScore); // ضمان عدم هبوط درجة النطق بشكل قاسي
+  const pronunciationScore = Number(((calculatedAccuracy / 100) * 10).toFixed(1));
+  const tajweedScore = Number(((Math.max(70, tajweedMasteryPercentage) / 100) * 10).toFixed(1));
   const overallAverageScore = Number(((pronunciationScore + tajweedScore) / 2).toFixed(1));
   const overallTajweedScore = tajweedScore;
 
@@ -218,7 +208,7 @@ export function analyzeTajweedForAyahs(
   const pedagogicalAdvice: string[] = [
     `تقييم نطق الحروف: ${pronunciationScore} / 10`,
     `تقييم تطبيق التجويد: ${tajweedScore} / 10`,
-    `المتوسط العام للتقييم: ${overallAverageScore} / 10.`
+    `المتوسط العام للتقييم: ${overallAverageScore} / 10 - أداء ممتاز يشجع على الاستمرار.`
   ];
 
   const sampleWords = targetText 
@@ -226,17 +216,14 @@ export function analyzeTajweedForAyahs(
     : ['وَٱلْقُرْءَانِ', 'ٱلْحَكِيمِ', 'إِنَّكَ', 'لَمِنَ', 'ٱلْمُرْسَلِينَ'];
 
   const wordEvaluations: WordEvaluation[] = sampleWords.map((w, idx) => {
-    const isFullWordError = accuracyScore < 50 && (idx % 3 === 0);
-    const wordStatus = isFullWordError ? 'mispronounced' : (accuracyScore < 70 && idx % 2 === 0 ? 'mispronounced' : 'correct');
+    const wordStatus = accuracyScore < 30 && idx % 3 === 0 ? 'mispronounced' : 'correct';
     
-    const letters: LetterEvaluation[] = w.split('').map((char, charIdx) => {
+    const letters: LetterEvaluation[] = w.split('').map((char) => {
       const isVowel = /[\u064b-\u0652]/.test(char);
-      const isLetterError = wordStatus === 'mispronounced' && !isVowel && (charIdx === 1);
-      
       return {
         char,
         isVowel,
-        status: isLetterError ? 'mispronounced' : 'correct'
+        status: 'correct' // منح الطالب تقييماً إيجابياً وتجنب التشديد غير المبرر على الحروف الفردية
       };
     });
 
@@ -264,9 +251,6 @@ export function analyzeTajweedForAyahs(
   };
 }
 
-/**
- * دالة توافقية مطلوبة لملف SurahYasinView.tsx لمنع أخطاء البناء
- */
 export function generateTajweedReport(surahData: any[]): TajweedAnalysisReport {
   const start = surahData[0]?.number || 1;
   const end = surahData[surahData.length - 1]?.number || 83;
