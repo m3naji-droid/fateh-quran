@@ -11,8 +11,8 @@ function normalizeArabic(text: string): string {
     .trim()
     .replace(/[\u064b-\u0652]/g, '') // إزالة التشكيل
     .replace(/[أإآٱ]/g, 'ا')         // توحيد أشكال الألف
-    .replace(/ة/g, 'ه')            // توحيد التاء المربوطة والهاء
-    .replace(/ى/g, 'ي');            // توحيد الألف المقصورة والياء
+    .replace(/ة/g, 'ه')             // توحيد التاء المربوطة والهاء
+    .replace(/ى/g, 'ي');             // توحيد الألف المقصورة والياء
 }
 
 /**
@@ -78,7 +78,7 @@ export interface EvaluationResult {
   accuracyPercentage: number;
   aiScore: number;             
   tajweedScore: number;          
-  pronunciationScore: number;   
+  pronunciationScore: number;    
   tajweedReport: TajweedAnalysisReport;
   wordEvaluations: WordEvaluation[];
   transcribedText: string;
@@ -156,7 +156,7 @@ export function evaluateRecitationLocally(
       let status: WordStatus = 'missing';
       let recWord: string | undefined = undefined;
 
-      // [تعديل التساهل]: تخفيض عتبة القبول للكلمة الصحيحة إلى 0.45 بدلاً من 0.65 لتجنب اعتبار الأخطاء الإملائية البسيطة خطأً
+      // [تعديل التساهل]: تخفيض عتبة القبول للكلمة الصحيحة إلى 0.45
       if (matchRatio >= 0.45) {
         status = 'correct';
         recWord = currentSpoken;
@@ -164,18 +164,17 @@ export function evaluateRecitationLocally(
         correctCount++;
         lastMatchedIndex = i;
         totalLetterScoreAccumulator += 1.0;
-      } else if (matchRatio >= 0.20) { // [تعديل التساهل]: خفض عتبة النطق الخاطئ المتقارب إلى 0.20
+      } else if (matchRatio >= 0.20) { 
         status = 'mispronounced';
         recWord = currentSpoken;
         spokenIdx++;
         mispronouncedCount++;
         lastMatchedIndex = i;
-        totalLetterScoreAccumulator += Math.max(0.6, matchRatio + 0.3); // منح دعم إضافي للكلمات المتقاربة
+        totalLetterScoreAccumulator += Math.max(0.6, matchRatio + 0.3); 
       } else {
-        // فحص النافذة البديلة (Window Search) لتجاوز التقديم أو التأخير البسيط
         let bestSubMatchRatio = matchRatio;
         let bestSubIdx = -1;
-        const windowSize = 3; // [تعديل التساهل]: توسيع نافذة البحث قليلاً لمساعدة الطالب في حال تخطي كلمة
+        const windowSize = 3; 
         
         for (let w = 1; w <= windowSize && (spokenIdx + w) < spokenWords.length; w++) {
           const ratio = calculateWordMatchRatio(expected.voweled, spokenWords[spokenIdx + w]);
@@ -222,14 +221,14 @@ export function evaluateRecitationLocally(
   const basePronunciationRatio = totalLetterScoreAccumulator / Math.max(1, totalEvaluatedWordsCount);
   const completionRatio = Math.min(1.0, (lastMatchedIndex + 1) / Math.max(1, expectedQuranWords.length));
   
-  // [تعديل التساهل]: رفع الحد الأدنى للعلاقة الفعالة لمنع إعطاء درجات متدنية جداً عند وجود تفاوت بسيط
   const effectiveRatio = Math.min(1.0, Math.max(basePronunciationRatio, completionRatio * 0.85));
 
-  // [تعديل التساهل]: رفع النسبة الدنيا للتقييم لتبدأ من 30 بدلاً من 10 تشجيعاً للطالب
   const pronunciationScore = Number(Math.min(10, Math.max(3, effectiveRatio * 10)).toFixed(1));
   const accuracyPercentage = Math.max(30, Math.min(100, Math.round(effectiveRatio * 100)));
 
-  const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage);
+  // تمرير النص الكامل للآيات لضمان عمل محرك التجويد الجديد بكفاءة
+  const fullAyahText = expectedQuranWords.map(w => w.voweled).join(' ');
+  const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage, fullAyahText);
   
   let calculatedTajweedScore = 10.0;
   const rulesList = tajweedReport.allRules || [];
@@ -239,7 +238,7 @@ export function evaluateRecitationLocally(
     let successfulRulesCount = 0;
 
     rulesList.forEach(() => {
-      const isAppliedClean = accuracyPercentage >= 35; // [تعديل التساهل]: تسهيل شرط احتساب الأحكام التجويدية
+      const isAppliedClean = accuracyPercentage >= 35; 
       if (isAppliedClean) successfulRulesCount++;
     });
 
