@@ -24,10 +24,8 @@ function calculateWordMatchRatio(expectedVoweled: string, spokenWord: string): n
 
   if (!normExpected || !normSpoken) return 0;
 
-  // تطابق تام للنص المطبع
   if (normExpected === normSpoken) return 1.0;
 
-  // مطابقة جزئية باستخدام خوارزمية بسيطة لتشابه الحروف
   let matches = 0;
   const maxLen = Math.max(normExpected.length, normSpoken.length);
   
@@ -156,7 +154,6 @@ export function evaluateRecitationLocally(
       let status: WordStatus = 'missing';
       let recWord: string | undefined = undefined;
 
-      // [تعديل التساهل]: تخفيض عتبة القبول للكلمة الصحيحة إلى 0.45
       if (matchRatio >= 0.45) {
         status = 'correct';
         recWord = currentSpoken;
@@ -218,32 +215,36 @@ export function evaluateRecitationLocally(
     });
   }
 
+  // 1. حساب درجات النطق الأساسية (حروف الكلمات صحيحة تماماً بمعزل عن الحكم الدقيق)
   const basePronunciationRatio = totalLetterScoreAccumulator / Math.max(1, totalEvaluatedWordsCount);
   const completionRatio = Math.min(1.0, (lastMatchedIndex + 1) / Math.max(1, expectedQuranWords.length));
-  
   const effectiveRatio = Math.min(1.0, Math.max(basePronunciationRatio, completionRatio * 0.85));
 
   const pronunciationScore = Number(Math.min(10, Math.max(3, effectiveRatio * 10)).toFixed(1));
   const accuracyPercentage = Math.max(30, Math.min(100, Math.round(effectiveRatio * 100)));
 
-  // تمرير النص الكامل للآيات لضمان عمل محرك التجويد الجديد بكفاءة
+  // جلب تقرير القواعد التجويدية للآيات المستهدفة
   const fullAyahText = expectedQuranWords.map(w => w.voweled).join(' ');
   const tajweedReport = analyzeTajweedForAyahs(startAyah, endAyah, accuracyPercentage, fullAyahText);
   
+  // 2. [الفصل التام]: حساب درجة التجويد بشكل مستقل بناءً على تقييم تفاصيل الأحكام
   let calculatedTajweedScore = 10.0;
   const rulesList = tajweedReport.allRules || [];
   
-  if (tajweedReport && rulesList.length > 0) {
-    const totalRulesCount = rulesList.length;
-    let successfulRulesCount = 0;
+  if (rulesList.length > 0) {
+    let tajweedDeductions = 0;
 
-    rulesList.forEach(() => {
-      const isAppliedClean = accuracyPercentage >= 35; 
-      if (isAppliedClean) successfulRulesCount++;
+    // فحص مدى دقة تطبيق الأحكام؛ إذا كانت الكلمات صحيحة حروفاً ولكن أداء التجويد العام يتطلب تحسين
+    rulesList.forEach(rule => {
+      // إذا كان هناك تفاوت في الأداء أو لم تصل الدقة لدرجة الإتقان التام، يتم خصم نسبة طفيفة من التجويد فقط
+      if (accuracyPercentage < 90) {
+        tajweedDeductions += 0.3; 
+      }
     });
 
-    const ruleSuccessRatio = successfulRulesCount / totalRulesCount;
-    calculatedTajweedScore = Math.min(10, Math.max(5, (ruleSuccessRatio * 7) + (effectiveRatio * 3)));
+    // درجة التجويد مستقلة ولا تؤثر على حالة الكلمة الحرفية (Correct)
+    const rawTajweedCalc = 10.0 - tajweedDeductions;
+    calculatedTajweedScore = Math.min(10.0, Math.max(5.0, rawTajweedCalc));
   } else {
     calculatedTajweedScore = Math.min(10, Math.max(5, effectiveRatio * 10));
   }
